@@ -1,0 +1,9 @@
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pad_sm { padding: var(--space-3); }
+.pad_md { padding: var(--space-5); }
+.pad_lg { padding: var(--space-6); }

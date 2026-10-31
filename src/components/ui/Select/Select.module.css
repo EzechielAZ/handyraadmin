@@ -1,0 +1,185 @@
+﻿.container { display: flex; flex-direction: column; gap: 6px; }
+.fullWidth { width: 100%; }
+.rel { position: relative; }
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.req { color: var(--danger); }
+
+/* ─── Trigger ─── */
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  user-select: none;
+  min-width: 0;
+}
+.wrap:hover:not(.isDisabled):not(.open) { border-color: var(--text-3); }
+.open { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.hasError { border-color: var(--danger); }
+.isDisabled {
+  background: var(--bg-muted);
+  border-color: var(--border);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.sm { height: var(--h-sm); padding: 0 10px; font-size: var(--fs-sm); }
+.md { height: var(--h-md); padding: 0 12px; font-size: var(--fs-base); }
+.lg { height: var(--h-lg); padding: 0 14px; font-size: var(--fs-md); }
+
+.value {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.placeholder { color: var(--text-3); flex: 1; min-width: 0; }
+
+.actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.clear {
+  display: inline-flex;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.clear:hover { color: var(--text); }
+.chevron { color: var(--text-3); flex-shrink: 0; }
+
+/* ─── Dropdown flottant : s'adapte au contenu, pas au trigger ─── */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(10, 10, 10, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  /* ← Cœur du fix : le dropdown s'élargit selon le contenu */
+  min-width: 100%;              /* jamais plus étroit que le trigger */
+  width: max-content;           /* grandit selon le contenu */
+  max-width: min(380px, 90vw);  /* plafond pour ne pas déborder */
+  max-height: 340px;
+}
+
+/* ─── Recherche ─── */
+.searchWrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  min-width: 240px;             /* garantit une barre de recherche lisible */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.searchInput {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.searchInput:focus { border-color: var(--accent); }
+
+/* ─── Options ─── */
+.options {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: var(--fs-base);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.option:hover, .highlighted { background: var(--bg-muted); }
+
+/* Enfant (sous-catégorie) */
+.optionChild {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.optionChild .optionLabel {
+  font-weight: var(--fw-regular);
+}
+
+/* Petit trait vertical pour la hiérarchie */
+.treeBranch {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--border-strong);
+  transform: translateY(-50%);
+  flex-shrink: 0;
+}
+.treeBranch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -8px;
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;                 /* indispensable pour que text-overflow marche */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--fw-medium);
+}
+
+.option.selected {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.option.selected .optionLabel {
+  font-weight: var(--fw-semibold);
+}
+
+.empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+
+.error { font-size: var(--fs-sm); color: var(--danger); }
+.hint { font-size: var(--fs-sm); color: var(--text-3); }

@@ -1,0 +1,115 @@
+﻿.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: var(--fw-medium);
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* Sizes */
+.sm { height: var(--h-sm); padding: 0 10px; font-size: var(--fs-sm); }
+.md { height: var(--h-md); padding: 0 14px; font-size: var(--fs-base); }
+.lg { height: var(--h-lg); padding: 0 18px; font-size: var(--fs-md); }
+
+.iconOnly.sm { width: var(--h-sm); padding: 0; }
+.iconOnly.md { width: var(--h-md); padding: 0; }
+.iconOnly.lg { width: var(--h-lg); padding: 0; }
+
+.fullWidth { width: 100%; }
+
+/* Variants */
+.primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.primary:active:not(:disabled) {
+  background: var(--accent-active);
+}
+
+.secondary {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+}
+
+.outline {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.outline:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-2);
+  border-color: transparent;
+}
+.ghost:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+
+.danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+.danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.success {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
+.success:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+.warning {
+  background: var(--warning);
+  color: #fff;
+  border-color: var(--warning);
+}
+.warning:hover:not(:disabled) {
+  background: #b45309;
+  border-color: #b45309;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

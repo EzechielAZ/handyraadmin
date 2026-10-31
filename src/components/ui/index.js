@@ -1,0 +1,13 @@
+// src/components/ui/index.js
+export { default as Badge }      from './Badge/Badge'
+export { default as Button }     from './Button/Button'
+export { default as Card }       from './Card/Card'
+export { default as EmptyState } from './EmptyState/EmptyState'
+export { default as Input }      from './Input/Input'
+export { default as Modal }      from './Modal/Modal'
+export { default as Select }     from './Select/Select'
+export { default as Spinner }    from './Spinner/Spinner'
+export { default as StatCard }   from './StatCard/StatCard'
+export { default as Table }      from './Table/Table'
+export { default as Tabs }       from './Tabs/Tabs'
+export { default as ActionsMenu } from './ActionsMenu/ActionsMenu'

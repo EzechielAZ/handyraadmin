@@ -1,0 +1,100 @@
+﻿.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--space-5);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition);
+}
+.card:hover { border-color: var(--border-strong); }
+.clickable { cursor: pointer; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-2);
+}
+
+.icon_primary   { color: var(--accent);   background: var(--accent-subtle); }
+.icon_success   { color: var(--success);  background: var(--success-subtle); }
+.icon_warning   { color: var(--warning);  background: var(--warning-subtle); }
+.icon_danger    { color: var(--danger);   background: var(--danger-subtle); }
+.icon_info      { color: var(--info);     background: var(--info-subtle); }
+.icon_secondary { color: var(--text-2);   background: var(--bg-muted); }
+
+.body { display: flex; align-items: baseline; }
+
+.value {
+  font-size: 24px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.affix {
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 0 3px;
+  font-weight: var(--fw-regular);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  background: var(--bg);
+}
+.deltaPos { color: var(--success); border-color: var(--success-border); }
+.deltaNeg { color: var(--danger);  border-color: var(--danger-border); }
+
+.deltaLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.shimmer {
+  display: inline-block;
+  width: 60px;
+  height: 20px;
+  background: linear-gradient(90deg, var(--bg-muted), var(--border), var(--bg-muted));
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: shim 1.2s ease infinite;
+}
+@keyframes shim { to { background-position: -200% 0; } }
