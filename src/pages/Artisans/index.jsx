@@ -779,4 +779,4 @@ const Artisans = () => {
   )
 }
 
-export default Artisans
+export default Artisans  
