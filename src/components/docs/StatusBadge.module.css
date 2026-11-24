@@ -1,0 +1,113 @@
+/* ═══════════════════════════════════════════════════════════════
+   StatusBadge — palette sobre (navy + accents fonctionnels)
+   ═══════════════════════════════════════════════════════════════ */
+
+.badge {
+  --bdg-text:      #475569;
+  --bdg-bg:        #f8fafc;
+  --bdg-border:    #e2e8f0;
+  --bdg-disc:      #94a3b8;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+  background: var(--bdg-bg);
+  color: var(--bdg-text);
+  border: 1px solid var(--bdg-border);
+  font-size: var(--fs-xs, 11px);
+  font-weight: var(--fw-medium, 500);
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+.badge.noIcon {
+  padding-left: 9px;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bdg-disc);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ─── Sizes ─── */
+.sm { padding-block: 3px; }
+.md {
+  padding: 5px 12px 5px 6px;
+  font-size: var(--fs-sm, 13px);
+}
+.md .disc { width: 18px; height: 18px; }
+.md.noIcon { padding-left: 12px; }
+
+/* ─── Couleurs ─── */
+.gray {
+  --bdg-text:   #475569;
+  --bdg-bg:     #f8fafc;
+  --bdg-border: #e2e8f0;
+  --bdg-disc:   #94a3b8;
+}
+
+.blue {
+  --bdg-text:   #1e40af;
+  --bdg-bg:     #eff6ff;
+  --bdg-border: #bfdbfe;
+  --bdg-disc:   #3b82f6;
+}
+
+.green {
+  --bdg-text:   #065f46;
+  --bdg-bg:     #ecfdf5;
+  --bdg-border: #a7f3d0;
+  --bdg-disc:   #10b981;
+}
+
+.yellow {
+  --bdg-text:   #92400e;
+  --bdg-bg:     #fffbeb;
+  --bdg-border: #fde68a;
+  --bdg-disc:   #f59e0b;
+}
+
+.orange {
+  --bdg-text:   #9a3412;
+  --bdg-bg:     #fff7ed;
+  --bdg-border: #fed7aa;
+  --bdg-disc:   #f97316;
+}
+
+.red {
+  --bdg-text:   #991b1b;
+  --bdg-bg:     #fef2f2;
+  --bdg-border: #fecaca;
+  --bdg-disc:   #ef4444;
+}
+
+.purple {
+  --bdg-text:   #5b21b6;
+  --bdg-bg:     #f5f3ff;
+  --bdg-border: #ddd6fe;
+  --bdg-disc:   #8b5cf6;
+}
+
+.navy {
+  --bdg-text:   #14213d;
+  --bdg-bg:     #eef1f7;
+  --bdg-border: #d9dfeb;
+  --bdg-disc:   #14213d;
+}

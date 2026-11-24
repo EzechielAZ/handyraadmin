@@ -10,13 +10,21 @@ const Sidebar = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState({})
   const location = useLocation()
-  const { user, logout } = useAuthStore()
+  const { user, role, permissions, logout } = useAuthStore()
 
+  // Un item est visible si :
+  //  - il n'a ni `roles` ni `permissions` (public pour tout admin), ou
+  //  - le rôle admin de l'utilisateur est dans `roles`, ou
+  //  - l'utilisateur a au moins une des `permissions`
   const allNavItems = [...mainNavigation, ...secondaryNavigation]
   const filteredNavItems = allNavItems.filter((item) => {
-    if (!item.roles || item.roles.length === 0) return true
-    if (!user?.user_role) return false
-    return item.roles.includes(user.user_role)
+    const hasRoles = item.roles && item.roles.length > 0
+    const hasPerms = item.permissions && item.permissions.length > 0
+    if (!hasRoles && !hasPerms) return true
+    if (!role) return false
+    if (hasRoles && item.roles.includes(role)) return true
+    if (hasPerms && item.permissions.some((p) => permissions.includes(p))) return true
+    return false
   })
 
   useEffect(() => {
@@ -108,7 +116,7 @@ const Sidebar = () => {
               <span className={styles.emptyTitle}>Aucun menu</span>
               {!collapsed && (
                 <span className={styles.emptyHint}>
-                  {user?.user_role || 'Rôle non défini'}
+                  {role || 'Rôle non défini'}
                 </span>
               )}
             </div>
@@ -195,7 +203,7 @@ const Sidebar = () => {
                   {user?.full_name || 'Administrateur'}
                 </span>
                 <span className={styles.userRole}>
-                  {user?.user_role || 'Admin'}
+                  {role || 'Admin'}
                 </span>
               </div>
             )}
@@ -204,7 +212,7 @@ const Sidebar = () => {
             <button
               type="button"
               className={styles.logoutBtn}
-              onClick={logout}
+              onClick={() => logout()}
               aria-label="Se déconnecter"
               title="Se déconnecter"
             >

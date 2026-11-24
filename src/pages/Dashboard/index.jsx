@@ -1,14 +1,19 @@
 // pages/Dashboard/index.jsx
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { useDashboard } from '../../hooks/useDashboard'
 import StatCard from '../../components/ui/StatCard'
+import EngagementSection from '../../components/dashboard/EngagementSection'
+import AcquisitionCard from '../../components/dashboard/AcquisitionCard'
 import RevenueChart from '../../components/charts/RevenueChart'
 import MissionDonut from '../../components/charts/MissionDonut'
 import UserGrowthChart from '../../components/charts/UserGrowthChart'
 import PaymentMethodChart from '../../components/charts/PaymentMethodChart'
 import {
   Users, Briefcase, CreditCard, Star,
-  AlertTriangle, ShieldAlert, Info, ArrowUpRight, MessageSquareWarning,
+  UserCheck, ShieldAlert, Scale, ArrowUpRight, MessageSquareWarning,
+  Building2, Wrench, Check, X, Clock, Play, AlertTriangle,
 } from 'lucide-react'
 import styles from './Dashboard.module.css'
 
@@ -16,14 +21,162 @@ const fmt = (n) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(n)
 
 const STATUS_CONFIG = {
-  COMPLETED:        { label: 'Terminée',       cls: 'completed' },
-  PENDING:          { label: 'En attente',      cls: 'pending'   },
-  ACCEPTED:         { label: 'Acceptée',        cls: 'active'    },
-  IN_PROGRESS:      { label: 'En cours',        cls: 'active'    },
-  ON_WAY:           { label: 'En chemin',       cls: 'active'    },
-  CANCELLED:        { label: 'Annulée',         cls: 'cancelled' },
-  INCIDENT:         { label: 'Incident',        cls: 'incident'  },
-  PENDING_VALIDATION:{ label: 'Validation',     cls: 'pending'   },
+  COMPLETED:          { label: 'Terminée',   cls: 'completed', icon: Check },
+  PENDING:            { label: 'En attente', cls: 'pending',   icon: Clock },
+  ACCEPTED:           { label: 'Acceptée',   cls: 'active',    icon: Play },
+  IN_PROGRESS:        { label: 'En cours',   cls: 'active',    icon: Play },
+  ON_WAY:             { label: 'En chemin',  cls: 'active',    icon: Play },
+  CANCELLED:          { label: 'Annulée',    cls: 'cancelled', icon: X },
+  INCIDENT:           { label: 'Incident',   cls: 'incident',  icon: AlertTriangle },
+  PENDING_VALIDATION: { label: 'Validation', cls: 'pending',   icon: Clock },
+}
+
+const ALERT_CONFIG = [
+  { key: 'kycPending',      icon: UserCheck,            label: 'KYC en attente',            action: 'Traiter' },
+  { key: 'openIncidents',   icon: ShieldAlert,          label: 'Incidents ouverts',         action: 'Voir', urgent: true },
+  { key: 'pendingDisputes', icon: Scale,                label: 'Litiges en arbitrage',      action: 'Gérer' },
+  { key: 'desintermAlerts', icon: MessageSquareWarning, label: 'Alertes désintermédiation', action: 'Voir' },
+]
+
+const CANCELLED_BY_LABEL = {
+  CLIENT:  'Client',
+  ARTISAN: 'Artisan',
+  SYSTEM:  'Système',
+}
+
+/* À aligner sur les routes réelles de ton routeur */
+const PROFILE_PATH = {
+  client:  (id) => `/clients/${id}`,
+  artisan: (id) => `/artisans/${id}`,
+}
+
+/* created_at est un "timestamp without time zone" (UTC côté Supabase) :
+   sans suffixe, JS l'interpréterait en heure locale et décalerait l'heure. */
+const parseDbDate = (v) => {
+  if (!v) return null
+  const s = String(v).replace(' ', 'T')
+  const hasTz = /T.*([zZ]|[+-]\d{2}(:?\d{2})?)$/.test(s)
+  const d = new Date(hasTz ? s : `${s}Z`)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/* Disque opaque + icône blanche, avant le texte de la pastille */
+const StatusContent = ({ sc }) => {
+  const Icon = sc.icon
+  return (
+    <>
+      <span
+        className={`${styles.statusIcon} ${styles[`statusIcon_${sc.cls}`]}`}
+        aria-hidden="true"
+      >
+        <Icon size={10} strokeWidth={3} />
+      </span>
+      {sc.label}
+    </>
+  )
+}
+
+/* Nom cliquable vers le profil ; le clic ne déclenche pas le clic de ligne */
+const PersonLink = ({ to, name, fallback = '—' }) => {
+  if (!to || !name) return <span>{name || fallback}</span>
+  return (
+    <Link to={to} className={styles.personLink} onClick={(e) => e.stopPropagation()}>
+      {name}
+    </Link>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Badge « Annulée » avec tooltip (portal, jamais clippé par le tableau)
+   Affiche : qui a annulé → cause → détail libre → date
+───────────────────────────────────────────── */
+const CancelledBadge = ({ children, className, mission }) => {
+  const ref = useRef(null)
+  const [pos, setPos] = useState(null)
+
+  const show = () => {
+    if (!ref.current) return
+    const r = ref.current.getBoundingClientRect()
+    const below = r.top < 160
+    setPos({
+      x: r.left + r.width / 2,
+      y: below ? r.bottom : r.top,
+      below,
+    })
+  }
+  const hide = () => setPos(null)
+
+  useEffect(() => {
+    if (!pos) return
+    window.addEventListener('scroll', hide, true)
+    window.addEventListener('resize', hide)
+    return () => {
+      window.removeEventListener('scroll', hide, true)
+      window.removeEventListener('resize', hide)
+    }
+  }, [pos])
+
+  const by = mission.cancelled_by
+  const byLabel = CANCELLED_BY_LABEL[by] || 'Non renseigné'
+  const byName =
+    by === 'CLIENT'  ? mission.clientName :
+    by === 'ARTISAN' ? mission.artisanName :
+    null
+
+  const reasonLabel = mission.cancellation_reason_label || mission.cancellation_reason_code
+  const reasonDetail = mission.cancellation_reason
+  const hasReason = Boolean(reasonLabel || reasonDetail)
+
+  const cancelledAtDate = parseDbDate(mission.cancelled_at)
+  const cancelledAt = cancelledAtDate
+    ? cancelledAtDate.toLocaleString('fr-FR', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : null
+
+  return (
+    <>
+      <span
+        ref={ref}
+        className={className}
+        tabIndex={0}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        aria-describedby={pos ? 'cancel-tooltip' : undefined}
+      >
+        {children}
+      </span>
+      {pos && createPortal(
+        <div
+          id="cancel-tooltip"
+          role="tooltip"
+          className={`${styles.tooltip} ${pos.below ? styles.tooltipBelow : styles.tooltipAbove}`}
+          style={{ left: pos.x, top: pos.y }}
+        >
+          <span className={styles.tooltipEyebrow}>Annulée par</span>
+          <span className={styles.tooltipText}>
+            {byLabel}{byName ? ` · ${byName}` : ''}
+          </span>
+
+          <span className={styles.tooltipDivider} />
+
+          <span className={styles.tooltipEyebrow}>Cause</span>
+          <span className={styles.tooltipText}>
+            {hasReason ? (reasonLabel || reasonDetail) : 'Aucune cause renseignée'}
+          </span>
+          {reasonLabel && reasonDetail && (
+            <span className={styles.tooltipDetail}>{reasonDetail}</span>
+          )}
+
+          {cancelledAt && <span className={styles.tooltipMeta}>{cancelledAt}</span>}
+        </div>,
+        document.body
+      )}
+    </>
+  )
 }
 
 const Dashboard = () => {
@@ -41,16 +194,16 @@ const Dashboard = () => {
   if (isError) {
     return (
       <div className={styles.loadingScreen}>
-        <span className={styles.loadingText} style={{ color: '#f87171' }}>
+        <span className={styles.loadingText} style={{ color: 'var(--danger)' }}>
           Erreur : {error?.message}
         </span>
       </div>
     )
   }
 
-  const { stats, alerts, charts, recentMissions } = data
+  const { stats, alerts, charts, recentMissions, engagement, acquisition } = data
 
-  const hasAlerts = Object.values(alerts).some(v => v > 0)
+  const activeAlerts = ALERT_CONFIG.filter(a => alerts[a.key] > 0)
 
   return (
     <div className={styles.dashboard}>
@@ -64,7 +217,7 @@ const Dashboard = () => {
           <h1 className={styles.title}>Tableau de bord</h1>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn}>
+          <button type="button" className={styles.exportBtn}>
             <ArrowUpRight size={14} strokeWidth={2} />
             Exporter
           </button>
@@ -72,40 +225,26 @@ const Dashboard = () => {
       </div>
 
       {/* ── Alerts ── */}
-      {hasAlerts && (
+      {activeAlerts.length > 0 && (
         <div className={styles.alerts}>
-          {alerts.kycPending > 0 && (
-            <div className={`${styles.alert} ${styles.alertWarning}`}>
-              <span className={styles.alertIcon}><AlertTriangle size={13} /></span>
-              <span className={styles.alertCount}>{alerts.kycPending}</span>
-              <span className={styles.alertLabel}>KYC en attente</span>
-              <button className={styles.alertAction}>Traiter →</button>
+          {activeAlerts.map(({ key, icon: Icon, label, action, urgent }) => (
+            <div
+              key={key}
+              className={`${styles.alert} ${urgent ? styles.alertUrgent : ''}`}
+            >
+              <span className={styles.alertIcon}>
+                <Icon size={15} strokeWidth={1.75} />
+              </span>
+              <div className={styles.alertBody}>
+                <span className={styles.alertCount}>{alerts[key]}</span>
+                <span className={styles.alertLabel}>{label}</span>
+              </div>
+              <button type="button" className={styles.alertAction}>
+                {action}
+                <ArrowUpRight size={12} strokeWidth={2} />
+              </button>
             </div>
-          )}
-          {alerts.openIncidents > 0 && (
-            <div className={`${styles.alert} ${styles.alertDanger}`}>
-              <span className={styles.alertIcon}><ShieldAlert size={13} /></span>
-              <span className={styles.alertCount}>{alerts.openIncidents}</span>
-              <span className={styles.alertLabel}>Incidents ouverts</span>
-              <button className={styles.alertAction}>Voir →</button>
-            </div>
-          )}
-          {alerts.pendingDisputes > 0 && (
-            <div className={`${styles.alert} ${styles.alertInfo}`}>
-              <span className={styles.alertIcon}><Info size={13} /></span>
-              <span className={styles.alertCount}>{alerts.pendingDisputes}</span>
-              <span className={styles.alertLabel}>Litiges en arbitrage</span>
-              <button className={styles.alertAction}>Gérer →</button>
-            </div>
-          )}
-          {alerts.desintermAlerts > 0 && (
-            <div className={`${styles.alert} ${styles.alertDanger}`}>
-              <span className={styles.alertIcon}><MessageSquareWarning size={13} /></span>
-              <span className={styles.alertCount}>{alerts.desintermAlerts}</span>
-              <span className={styles.alertLabel}>Alertes désintermédiation</span>
-              <button className={styles.alertAction}>Voir →</button>
-            </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -118,14 +257,12 @@ const Dashboard = () => {
           changeLabel="nouveaux ce mois"
           icon={Users}
           color="primary"
-          variant="gradient"
         />
         <StatCard
           title="Clients"
           value={stats.clients.total}
           icon={Users}
-          color="info"
-          variant="gradient"
+          color="primary"
         />
         <StatCard
           title="Missions"
@@ -133,17 +270,16 @@ const Dashboard = () => {
           change={stats.missions.completed}
           changeLabel="terminées ce mois"
           icon={Briefcase}
-          color="success"
-          variant="gradient"
+          color="primary"
         />
         <StatCard
           title="Revenus"
           value={stats.revenue.total}
           change={stats.revenue.commissions}
           changeLabel="en commissions"
+          changeFormat="currency"
           icon={CreditCard}
-          color="warning"
-          variant="gradient"
+          color="primary"
           format="currency"
         />
         <StatCard
@@ -152,7 +288,6 @@ const Dashboard = () => {
           changeLabel="ce mois"
           icon={CreditCard}
           color="primary"
-          variant="gradient"
           format="currency"
         />
         <StatCard
@@ -161,8 +296,7 @@ const Dashboard = () => {
           change={stats.rating.count}
           changeLabel="avis ce mois"
           icon={Star}
-          color="info"
-          variant="gradient"
+          color="primary"
           format="number"
           decimals={1}
         />
@@ -171,16 +305,14 @@ const Dashboard = () => {
           value={stats.missions.pending}
           changeLabel="missions PENDING"
           icon={Briefcase}
-          color="warning"
-          variant="gradient"
+          color="primary"
         />
         <StatCard
           title="En cours"
           value={stats.missions.inProgress}
           changeLabel="missions actives"
           icon={Briefcase}
-          color="success"
-          variant="gradient"
+          color="primary"
         />
       </div>
 
@@ -225,7 +357,13 @@ const Dashboard = () => {
           </div>
           <PaymentMethodChart data={charts.paymentMethods} />
         </div>
+
+        {/* ── Acquisition : canaux d'inscription clients ── */}
+        <AcquisitionCard data={acquisition} />
       </div>
+
+      {/* ── Engagement : usage & rétention ── */}
+      <EngagementSection data={engagement} />
 
       {/* ── Missions récentes ── */}
       {recentMissions.length > 0 && (
@@ -235,7 +373,7 @@ const Dashboard = () => {
               <p className={styles.chartEyebrow}>Activité</p>
               <h3 className={styles.sectionTitle}>Missions récentes</h3>
             </div>
-            <button className={styles.viewAllBtn}>
+            <button type="button" className={styles.viewAllBtn}>
               Voir tout <ArrowUpRight size={13} strokeWidth={2} />
             </button>
           </div>
@@ -254,7 +392,10 @@ const Dashboard = () => {
               </thead>
               <tbody>
                 {recentMissions.map(m => {
-                  const sc = STATUS_CONFIG[m.status] || { label: m.status, cls: 'pending' }
+                  const sc = STATUS_CONFIG[m.status] || { label: m.status, cls: 'pending', icon: Clock }
+                  const TypeIcon = m.mission_world === 'CONSTRUCTION' ? Building2 : Wrench
+                  const badgeClass = `${styles.statusBadge} ${styles[`status_${sc.cls}`]}`
+                  const created = parseDbDate(m.created_at)
                   return (
                     <tr key={m.id_mission} className={styles.tableRow}>
                       <td>
@@ -262,23 +403,59 @@ const Dashboard = () => {
                           #{m.id_mission.slice(0, 8)}
                         </span>
                       </td>
-                      <td className={styles.cellPrimary}>{m.clientName || '—'}</td>
-                      <td className={styles.cellSecondary}>{m.artisanName || 'Non assigné'}</td>
+                      <td className={styles.cellPrimary}>
+                        <PersonLink
+                          to={m.client_id ? PROFILE_PATH.client(m.client_id) : null}
+                          name={m.clientName}
+                        />
+                      </td>
+                      <td className={styles.cellSecondary}>
+                        <PersonLink
+                          to={m.artisan_id ? PROFILE_PATH.artisan(m.artisan_id) : null}
+                          name={m.artisanName}
+                          fallback="Non assigné"
+                        />
+                        {m.artisanName && m.assignment_number != null && (
+                          <span
+                            className={styles.assignmentNum}
+                            title={`Assignation n°${m.assignment_number} pour cette mission`}
+                          >
+                            ({m.assignment_number})
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className={styles.typeBadge}>
-                          {m.mission_world === 'CONSTRUCTION' ? '🏗' : '🔧'} {m.mission_type}
+                          <TypeIcon size={12} strokeWidth={1.75} />
+                          {m.mission_type}
                         </span>
                       </td>
                       <td>
-                        <span className={`${styles.statusBadge} ${styles[`status_${sc.cls}`]}`}>
-                          {sc.label}
-                        </span>
+                        {m.status === 'CANCELLED' ? (
+                          <CancelledBadge
+                            className={`${badgeClass} ${styles.hasTooltip}`}
+                            mission={m}
+                          >
+                            <StatusContent sc={sc} />
+                          </CancelledBadge>
+                        ) : (
+                          <span className={badgeClass}>
+                            <StatusContent sc={sc} />
+                          </span>
+                        )}
                       </td>
                       <td className={styles.cellAmount}>
                         {fmt(m.final_price || m.estimated_price || 0)}
                       </td>
                       <td className={styles.cellSecondary}>
-                        {new Date(m.created_at).toLocaleDateString('fr-FR')}
+                        {created ? (
+                          <>
+                            <span>{created.toLocaleDateString('fr-FR')}</span>
+                            <span className={styles.cellTime}>
+                              {created.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </>
+                        ) : '—'}
                       </td>
                     </tr>
                   )

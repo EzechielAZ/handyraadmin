@@ -6,10 +6,12 @@ import Input from '../../components/ui/Input'
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react'
 import styles from './Login.module.css'
 
+const LOGO_URL = 'https://pub-ab55a0ec7dd04f088db5a4ebfbb0c957.r2.dev/logo%20(1).png'
+
 const Login = () => {
   const navigate = useNavigate()
   const { login, isLoading } = useAuthStore()
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,30 +21,30 @@ const Login = () => {
 
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!formData.email) {
       newErrors.email = 'L\'email est requis'
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email invalide'
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Le mot de passe est requis'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Minimum 6 caractères'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     const result = await login(formData.email, formData.password)
-    
+
     if (result.success) {
       navigate('/dashboard')
     }
@@ -62,8 +64,8 @@ const Login = () => {
       <div className={styles.leftPanel}>
         <div className={styles.overlay}>
           <div className={styles.brand}>
-            <img src="/logo-white.svg" alt="Handyra" className={styles.logo} />
-            <h1>Handyra Admin</h1>
+            <img src={LOGO_URL} alt="Handyra" className={styles.logo} />
+            <h1 className={styles.brandName}>Admin</h1>
           </div>
           <div className={styles.quote}>
             <blockquote>
@@ -86,14 +88,14 @@ const Login = () => {
           </div>
         </div>
       </div>
-      
+
       <div className={styles.rightPanel}>
         <div className={styles.loginCard}>
           <div className={styles.header}>
             <h2>Connexion</h2>
             <p>Accédez à votre espace d'administration</p>
           </div>
-          
+
           <form onSubmit={handleSubmit} className={styles.form}>
             <Input
               type="email"
@@ -108,7 +110,7 @@ const Login = () => {
               fullWidth
               size="lg"
             />
-            
+
             <Input
               type={showPassword ? 'text' : 'password'}
               name="password"
@@ -122,17 +124,17 @@ const Login = () => {
               fullWidth
               size="lg"
             />
-            
+
             <div className={styles.options}>
               <label className={styles.remember}>
-                <input type="checkbox" /> 
+                <input type="checkbox" />
                 <span>Se souvenir de moi</span>
               </label>
               <button type="button" className={styles.forgotPassword}>
                 Mot de passe oublié ?
               </button>
             </div>
-            
+
             <Button
               type="submit"
               variant="primary"
@@ -144,9 +146,9 @@ const Login = () => {
               Se connecter
             </Button>
           </form>
-          
+
           <div className={styles.footer}>
-            <p>© 2024 Handyra. Tous droits réservés.</p>
+            <p>© {new Date().getFullYear()} Handyra. Tous droits réservés.</p>
           </div>
         </div>
       </div>

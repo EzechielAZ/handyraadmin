@@ -5,21 +5,31 @@
   UserCircle,
   CreditCard,
   HardHat,
-  Wrench,
+  Store,
   FileText,
   Settings,
+  Settings2,
   Gift,
   BarChart3,
   Shield,
   Truck,
-  Store,
   Award,
   Calendar,
   MessageSquare,
   Bell,
   HelpCircle,
   LogOut,
+  Layers,
 } from 'lucide-react'
+
+/*
+ * Visibilité des menus :
+ *  - `permissions` : l'item est visible si l'utilisateur possède AU MOINS UNE de ces permissions
+ *    (voir getPermissionsForRole dans store/authStore.js)
+ *  - sans `permissions` : visible pour tout administrateur connecté
+ *
+ * Rôles admin (admin.roles) : SUPER_ADMIN, ADMIN, MODERATOR, FINANCE, OPERATIONS
+ */
 
 // Navigation principale
 export const mainNavigation = [
@@ -28,14 +38,14 @@ export const mainNavigation = [
     label: 'Tableau de bord',
     icon: LayoutDashboard,
     path: '/dashboard',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['view_dashboard'],
   },
   {
     id: 'artisans',
     label: 'Artisans',
     icon: Users,
     path: '/artisans',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_artisans'],
     badge: 'KYCs en attente',
   },
   {
@@ -43,28 +53,28 @@ export const mainNavigation = [
     label: 'Missions',
     icon: Briefcase,
     path: '/missions',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_missions', 'view_missions'],
   },
   {
     id: 'users',
     label: 'Clients',
     icon: UserCircle,
     path: '/users',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_users'],
   },
   {
     id: 'payments',
     label: 'Paiements',
     icon: CreditCard,
     path: '/payments',
-    roles: ['ADMIN', 'FINANCE', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_payments', 'view_payments'],
   },
   {
     id: 'hpo',
     label: 'HPO',
     icon: HardHat,
     path: '/hpo',
-    roles: ['ADMIN', 'HPO_MANAGER', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_hpo'],
     children: [
       {
         id: 'supervisors',
@@ -88,71 +98,84 @@ export const mainNavigation = [
     label: 'Quincailleries',
     icon: Store,
     path: '/hardware',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_hardware'],
   },
   {
     id: 'reports',
     label: 'Rapports',
     icon: FileText,
     path: '/reports',
-    roles: ['ADMIN', 'ANALYST', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['view_reports', 'manage_reports'],
   },
   {
     id: 'subscriptions',
     label: 'Abonnements',
     icon: Gift,
     path: '/subscriptions',
-    roles: ['ADMIN', 'FINANCE', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_subscriptions', 'view_subscriptions'],
+  },
+  {
+    id: 'categories',
+    label: 'Catégories',
+    icon: Layers,
+    path: '/categories',
+    permissions: ['view_categories', 'manage_categories'],
   },
 ]
 
 // Navigation secondaire
 export const secondaryNavigation = [
   {
+    id: 'app-settings',
+    label: 'Paramètres app',
+    icon: Settings2,
+    path: '/app-settings',
+    permissions: ['manage_app_settings'],
+  },
+  {
     id: 'analytics',
     label: 'Analytiques',
     icon: BarChart3,
     path: '/analytics',
-    roles: ['ADMIN', 'ANALYST', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['view_analytics'],
   },
   {
     id: 'security',
     label: 'Sécurité',
     icon: Shield,
     path: '/security',
-    roles: ['SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_security'],
   },
   {
     id: 'logistics',
     label: 'Logistique',
     icon: Truck,
     path: '/logistics',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_hardware', 'manage_missions'],
   },
   {
     id: 'badges',
     label: 'Badges',
     icon: Award,
     path: '/badges',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_artisans'],
   },
   {
     id: 'calendar',
     label: 'Calendrier',
     icon: Calendar,
     path: '/calendar',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN'], // ARTISAN ajouté
+    permissions: ['manage_missions', 'view_missions'],
   },
 ]
 
-// Navigation utilisateur
+// Navigation utilisateur (accessible à tout administrateur connecté)
 export const userNavigation = [
   {
     id: 'profile',
     label: 'Mon profil',
     icon: UserCircle,
     path: '/profile',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
   },
   {
     id: 'messages',
@@ -160,7 +183,6 @@ export const userNavigation = [
     icon: MessageSquare,
     path: '/messages',
     badge: 3,
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
   },
   {
     id: 'notifications',
@@ -168,21 +190,19 @@ export const userNavigation = [
     icon: Bell,
     path: '/notifications',
     badge: 5,
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
   },
   {
     id: 'settings',
     label: 'Paramètres',
     icon: Settings,
     path: '/settings',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
+    permissions: ['view_settings', 'manage_settings'],
   },
   {
     id: 'help',
     label: 'Aide',
     icon: HelpCircle,
     path: '/help',
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
   },
   {
     id: 'logout',
@@ -190,37 +210,31 @@ export const userNavigation = [
     icon: LogOut,
     path: '/logout',
     divider: true,
-    roles: ['ADMIN', 'SUPER_ADMIN', 'ARTISAN', 'FINANCE', 'HPO_MANAGER', 'ANALYST'], // Tous les rôles
   },
 ]
 
-// Navigation par rôle
+// Navigation par rôle admin (ids des items visibles)
+const byIds = (ids) =>
+  [...mainNavigation, ...secondaryNavigation].filter((item) => ids.includes(item.id))
+
 export const roleBasedNavigation = {
-  ADMIN: [...mainNavigation, ...secondaryNavigation],
   SUPER_ADMIN: [...mainNavigation, ...secondaryNavigation],
-  ARTISAN: [ // Nouvelle entrée pour ARTISAN
-    ...mainNavigation.filter(item => 
-      ['dashboard', 'missions', 'payments', 'reports', 'profile'].includes(item.id)
-    ),
-    ...secondaryNavigation.filter(item =>
-      ['analytics', 'calendar'].includes(item.id)
-    ),
-  ],
-  FINANCE: mainNavigation.filter(item => 
-    ['dashboard', 'payments', 'subscriptions', 'reports'].includes(item.id)
-  ),
-  HPO_MANAGER: mainNavigation.filter(item =>
-    ['dashboard', 'hpo', 'missions', 'reports'].includes(item.id)
-  ),
-  ANALYST: secondaryNavigation.filter(item =>
-    ['analytics', 'reports'].includes(item.id)
-  ),
+  ADMIN: byIds([
+    'dashboard', 'artisans', 'missions', 'users', 'payments', 'hpo', 'hardware',
+    'reports', 'subscriptions', 'categories', 'logistics', 'badges', 'calendar',
+  ]),
+  MODERATOR: byIds(['dashboard', 'artisans', 'missions', 'users', 'reports', 'badges', 'calendar']),
+  FINANCE: byIds(['dashboard', 'payments', 'subscriptions', 'reports']),
+  OPERATIONS: byIds([
+    'dashboard', 'artisans', 'missions', 'hpo', 'hardware', 'reports',
+    'logistics', 'badges', 'calendar',
+  ]),
 }
 
 // Breadcrumbs mapping
 export const breadcrumbs = {
   '/dashboard': [{ label: 'Tableau de bord' }],
-  
+
   '/artisans': [
     { label: 'Artisans', path: '/artisans' }
   ],
@@ -228,7 +242,7 @@ export const breadcrumbs = {
     { label: 'Artisans', path: '/artisans' },
     { label: 'Détails artisan' }
   ],
-  
+
   '/missions': [
     { label: 'Missions', path: '/missions' }
   ],
@@ -236,7 +250,7 @@ export const breadcrumbs = {
     { label: 'Missions', path: '/missions' },
     { label: 'Détails mission' }
   ],
-  
+
   '/users': [
     { label: 'Clients', path: '/users' }
   ],
@@ -244,11 +258,11 @@ export const breadcrumbs = {
     { label: 'Clients', path: '/users' },
     { label: 'Détails client' }
   ],
-  
+
   '/payments': [
     { label: 'Paiements', path: '/payments' }
   ],
-  
+
   '/hpo': [
     { label: 'HPO', path: '/hpo' }
   ],
@@ -264,35 +278,43 @@ export const breadcrumbs = {
     { label: 'HPO', path: '/hpo' },
     { label: 'Contrats' }
   ],
-  
+
   '/hardware': [
     { label: 'Quincailleries', path: '/hardware' }
   ],
-  
+
   '/reports': [
     { label: 'Rapports', path: '/reports' }
   ],
-  
+
   '/subscriptions': [
     { label: 'Abonnements', path: '/subscriptions' }
   ],
-  
+
+  '/categories': [
+    { label: 'Catégories', path: '/categories' }
+  ],
+
+  '/app-settings': [
+    { label: 'Paramètres app', path: '/app-settings' }
+  ],
+
   '/profile': [
     { label: 'Profil', path: '/profile' }
   ],
-  
+
   '/messages': [
     { label: 'Messages', path: '/messages' }
   ],
-  
+
   '/notifications': [
     { label: 'Notifications', path: '/notifications' }
   ],
-  
+
   '/settings': [
     { label: 'Paramètres', path: '/settings' }
   ],
-  
+
   '/help': [
     { label: 'Aide', path: '/help' }
   ],

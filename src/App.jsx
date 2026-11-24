@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
 import {Spinner} from './components/ui'
 import { useAuthStore } from './store/authStore'
+import { supabase } from './lib/supabase'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import './App.css'
@@ -29,9 +31,30 @@ const HardwareDetail   = lazy(() => import('./pages/Hardware/HardwareDetail'))
 const Reports          = lazy(() => import('./pages/Reports'))
 const Subscriptions    = lazy(() => import('./pages/Subscriptions'))
 const Settings         = lazy(() => import('./pages/Settings'))
+const Categories       = lazy(() => import('./pages/Categories'))
+const AppSettings      = lazy(() => import('./pages/AppSettings'))
+
+// Autorise la route si l'utilisateur a au moins une des permissions demandées
+const RequirePermission = ({ anyOf, children }) => {
+  const allowed = useAuthStore((s) => anyOf.some((p) => s.permissions.includes(p)))
+  return allowed ? children : <Navigate to="/dashboard" replace />
+}
 
 function App() {
   const { isAuthenticated } = useAuthStore()
+
+  // Valide la session et le rôle admin au démarrage
+  useEffect(() => {
+    useAuthStore.getState().checkSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const store = useAuthStore.getState()
+      if (event === 'SIGNED_OUT') store.handleSignedOut()
+      if (event === 'TOKEN_REFRESHED') store.handleTokenRefreshed(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   if (!isAuthenticated) {
     return (
@@ -51,6 +74,7 @@ function App() {
         <div className="shell">
           <TopBar />
           <main className="content">
+            <ErrorBoundary>
             <Suspense fallback={
               <div className="suspense-fallback">
                 <Spinner size="lg" />
@@ -80,9 +104,20 @@ function App() {
                 <Route path="/reports"        element={<Reports />} />
                 <Route path="/subscriptions"  element={<Subscriptions />} />
                 <Route path="/settings"       element={<Settings />} />
+                <Route path="/categories"     element={
+                  <RequirePermission anyOf={['view_categories', 'manage_categories']}>
+                    <Categories />
+                  </RequirePermission>
+                } />
+                <Route path="/app-settings"   element={
+                  <RequirePermission anyOf={['manage_app_settings']}>
+                    <AppSettings />
+                  </RequirePermission>
+                } />
                 <Route path="*"               element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

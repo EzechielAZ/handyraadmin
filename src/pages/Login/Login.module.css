@@ -1,15 +1,21 @@
 .container {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- Panneau gauche ---------- */
+
 .leftPanel {
-  flex: 1;
+  flex: 1.1;
   position: relative;
-  background-image: url('/login-bg.jpg');
+  background-color: #020b2e;
+  background-image: url('https://pub-ab55a0ec7dd04f088db5a4ebfbb0c957.r2.dev/login-bg.webp');
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   display: none;
 }
 
@@ -19,35 +25,38 @@
   }
 }
 
+/* Plus d'overlay coloré : simple conteneur de contenu */
 .overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%);
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 48px;
-  color: white;
+  padding: 56px 64px;
+  color: #ffffff;
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   animation: fadeInDown 0.6s ease;
 }
 
 .logo {
-  width: 60px;
-  height: 60px;
-  margin-bottom: 24px;
-  filter: brightness(0) invert(1);
+  height: 44px;
+  width: auto;
+  object-fit: contain;
 }
 
-.brand h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 8px;
+.brandName {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+  line-height: 1.2;
+  margin: 0;
 }
 
 .quote {
@@ -55,43 +64,53 @@
 }
 
 .quote blockquote {
-  font-size: 24px;
-  font-style: italic;
-  line-height: 1.4;
-  margin-bottom: 48px;
-  max-width: 500px;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0 0 48px;
+  max-width: 520px;
+  text-shadow: 0 2px 16px rgba(0, 5, 30, 0.45);
 }
 
 .stats {
   display: flex;
   gap: 48px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .statValue {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0, 5, 30, 0.4);
 }
 
 .statLabel {
-  font-size: 14px;
-  opacity: 0.8;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
 }
+
+/* ---------- Panneau droit ---------- */
 
 .rightPanel {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  padding: 24px;
+  background: #ffffff;
+  padding: 32px 24px;
 }
 
 .loginCard {
@@ -101,26 +120,28 @@
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 
 .header h2 {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0 0 8px;
 }
 
 .header p {
   color: #64748b;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
   margin-bottom: 24px;
 }
 
@@ -137,40 +158,58 @@
   gap: 8px;
   color: #475569;
   cursor: pointer;
+  user-select: none;
 }
 
-.remember input[type="checkbox"] {
+.remember input[type='checkbox'] {
   width: 16px;
   height: 16px;
+  accent-color: #1d4ed8;
   cursor: pointer;
 }
 
 .forgotPassword {
   background: none;
   border: none;
-  color: #2563eb;
-  cursor: pointer;
+  padding: 0;
+  color: #1d4ed8;
   font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .forgotPassword:hover {
-  color: #1d4ed8;
+  color: #1e3a8a;
   text-decoration: underline;
+}
+
+.forgotPassword:focus-visible,
+.remember input:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .footer {
   text-align: center;
   margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
   color: #94a3b8;
-  font-size: 14px;
+  font-size: 13px;
 }
 
-/* Animations */
+.footer p {
+  margin: 0;
+}
+
+/* ---------- Animations ---------- */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -181,7 +220,7 @@
 @keyframes fadeInDown {
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(-16px);
   }
   to {
     opacity: 1;
@@ -192,10 +231,18 @@
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .quote,
+  .loginCard {
+    animation: none;
   }
 }

@@ -1,7 +1,14 @@
 /* ─────────────────────────────────────────────
-   CONTENEUR
+   TOKENS LOCAUX — palette unique : blanc / gris / navy
 ───────────────────────────────────────────── */
 .dashboard {
+  --navy: #14213d;
+  --navy-soft: #eef1f7;
+  --navy-line: #d9dfeb;
+  --urgent: #b42318;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-raised: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.06);
+
   min-height: 100%;
   padding: var(--page-pad);
   max-width: var(--content-max);
@@ -29,7 +36,7 @@
   width: 14px;
   height: 14px;
   border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--navy, var(--accent));
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -89,94 +96,129 @@
   align-items: center;
   gap: 6px;
   height: var(--h-md);
-  padding: 0 12px;
-  background: var(--bg);
+  padding: 0 14px;
+  background: #fff;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  color: var(--text);
+  color: var(--navy);
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
 
 .exportBtn:hover {
-  background: var(--bg-subtle);
+  background: var(--navy-soft);
+  border-color: var(--navy-line);
+  box-shadow: var(--shadow-raised);
 }
 
 /* ─────────────────────────────────────────────
-   ALERTES
+   ALERTES — un seul bandeau opaque, segmenté
 ───────────────────────────────────────────── */
 .alerts {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   margin-bottom: 20px;
+  overflow: hidden;
 }
 
 .alert {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
-  border: 1px solid;
-  background: var(--bg);
+  gap: 12px;
+  flex: 1 1 220px;
+  padding: 12px 16px;
+  background: #fff;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.alert:last-child {
+  border-right: none;
 }
 
 .alertIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-sm);
+  background: var(--navy-soft);
+  border: 1px solid var(--navy-line);
+  color: var(--navy);
   flex-shrink: 0;
 }
 
-.alertCount {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
+/* Alerte critique : icône pleine rouge opaque */
+.alertUrgent .alertIcon {
+  background: var(--urgent);
+  border-color: var(--urgent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(180, 35, 24, 0.25);
 }
 
-.alertLabel { color: inherit; opacity: 0.85; }
+.alertBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.alertCount {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.alertUrgent .alertCount {
+  color: var(--urgent);
+}
+
+.alertLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .alertAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   background: none;
   border: none;
+  padding: 4px 0;
   font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
+  color: var(--accent);
   cursor: pointer;
-  color: inherit;
-  opacity: 0.75;
-  margin-left: 4px;
-  padding: 0;
-  transition: opacity var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color var(--transition);
 }
-.alertAction:hover { opacity: 1; }
 
-.alertWarning {
-  background: var(--warning-subtle);
-  border-color: var(--warning-border);
-  color: var(--warning);
+.alertAction:hover {
+  color: var(--navy);
 }
-.alertWarning .alertIcon { background: var(--warning-subtle); color: var(--warning); }
 
-.alertDanger {
-  background: var(--danger-subtle);
-  border-color: var(--danger-border);
-  color: var(--danger);
+.alertUrgent .alertAction {
+  color: var(--urgent);
 }
-.alertDanger .alertIcon { background: var(--danger-subtle); color: var(--danger); }
 
-.alertInfo {
-  background: var(--info-subtle);
-  border-color: var(--info-border);
-  color: var(--info);
+.alertUrgent .alertAction:hover {
+  color: #7a271a;
 }
-.alertInfo .alertIcon { background: var(--info-subtle); color: var(--info); }
 
 /* ─────────────────────────────────────────────
    STATS
@@ -212,9 +254,10 @@
 }
 
 .chartCard {
-  background: var(--bg);
+  background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -243,7 +286,7 @@
 .chartTitle {
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
-  color: var(--text);
+  color: var(--navy);
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -252,9 +295,10 @@
    TABLEAU
 ───────────────────────────────────────────── */
 .tableSection {
-  background: var(--bg);
+  background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -269,7 +313,7 @@
 .sectionTitle {
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
-  color: var(--text);
+  color: var(--navy);
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -287,7 +331,7 @@
   padding: 0;
   transition: color var(--transition);
 }
-.viewAllBtn:hover { color: var(--accent-hover); }
+.viewAllBtn:hover { color: var(--navy); }
 
 .tableWrap {
   overflow-x: auto;
@@ -307,7 +351,7 @@
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--text-3);
-  background: var(--bg-subtle);
+  background: #f7f8fb;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -317,6 +361,7 @@
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   color: var(--text);
+  background: #fff;
 }
 
 .table tbody tr:last-child td { border-bottom: none; }
@@ -325,14 +370,14 @@
   transition: background var(--transition);
   cursor: pointer;
 }
-.tableRow:hover td { background: var(--bg-subtle); }
+.tableRow:hover td { background: #f7f8fb; }
 
 .missionId {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--text-2);
-  background: var(--bg-muted);
-  border: 1px solid var(--border);
+  color: var(--navy);
+  background: var(--navy-soft);
+  border: 1px solid var(--navy-line);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   display: inline-block;
@@ -350,73 +395,208 @@
 
 .cellAmount {
   font-weight: var(--fw-semibold);
-  color: var(--text);
+  color: var(--navy);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* Heure sous la date */
+.cellTime {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Liens vers les profils client / artisan */
+.personLink {
+  color: inherit;
+  text-decoration: none;
+}
+.personLink:hover {
+  color: var(--navy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Numéro d'assignation, entre parenthèses après le nom de l'artisan */
+.assignmentNum {
+  margin-left: 4px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
 }
 
 .typeBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: var(--fs-xs);
   color: var(--text-2);
   white-space: nowrap;
 }
 
+.typeBadge svg {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
 /* ─────────────────────────────────────────────
-   BADGES DE STATUT
+   BADGES DE STATUT — opaques, une seule famille
 ───────────────────────────────────────────── */
 .statusBadge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid;
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text-2);
+  border: 1px solid var(--border-strong);
   white-space: nowrap;
 }
 
-.statusBadge::before {
-  content: '';
-  width: 4px;
-  height: 4px;
+/* Disque opaque + icône blanche, avant le texte */
+.statusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: currentColor;
+  color: #fff;
   flex-shrink: 0;
 }
+.statusIcon_completed { background: #039855; }
+.statusIcon_active    { background: var(--navy); }
+.statusIcon_pending   { background: #9aa3b5; }
+.statusIcon_cancelled { background: var(--urgent); }
+.statusIcon_incident  { background: var(--urgent); }
 
 .status_completed {
-  color: var(--success);
-  border-color: var(--success-border);
-  background: var(--bg);
-}
-
-.status_pending {
-  color: var(--warning);
-  border-color: var(--warning-border);
-  background: var(--bg);
+  color: var(--navy);
+  border-color: var(--navy-line);
+  background: var(--navy-soft);
 }
 
 .status_active {
   color: var(--accent);
-  border-color: var(--accent-border);
-  background: var(--bg);
+  border-color: var(--navy-line);
+  background: #fff;
 }
 
 .status_cancelled {
-  color: var(--danger);
-  border-color: var(--danger-border);
-  background: var(--bg);
+  color: var(--text-3);
+  background: #f7f8fb;
 }
 
-/* Alias pour INCIDENT (utilisé dans le STATUS_CONFIG du Dashboard) */
 .status_incident {
-  color: var(--danger);
-  border-color: var(--danger-border);
-  background: var(--bg);
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* Badge avec tooltip */
+.hasTooltip {
+  cursor: help;
+  outline: none;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+
+.hasTooltip:hover,
+.hasTooltip:focus-visible {
+  color: var(--navy);
+  background: #fff;
+  border-color: #9aa3b5;
+}
+
+.hasTooltip:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--navy);
+}
+
+/* ─────────────────────────────────────────────
+   TOOLTIP — rendu dans document.body (portal),
+   donc valeurs en dur, pas de variables .dashboard
+───────────────────────────────────────────── */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+  max-width: 280px;
+  padding: 12px 14px;
+  background: #14213d;
+  border: 1px solid #14213d;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(16, 24, 40, 0.10), 0 12px 24px rgba(16, 24, 40, 0.18);
+  pointer-events: none;
+  animation: tooltipIn 120ms ease-out;
+}
+
+.tooltipAbove { transform: translate(-50%, calc(-100% - 8px)); }
+.tooltipBelow { transform: translate(-50%, 8px); }
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #14213d;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tooltipAbove::after { bottom: -4px; }
+.tooltipBelow::after { top: -4px; }
+
+.tooltipEyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa3b5;
+}
+
+.tooltipText {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #fff;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.tooltipDivider {
+  display: block;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.14);
+  margin: 7px 0 5px;
+}
+
+.tooltipDetail {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #c4cad7;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.tooltipMeta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9aa3b5;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tooltipIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ─────────────────────────────────────────────
@@ -428,4 +608,6 @@
   .headerActions { width: 100%; }
   .exportBtn { width: 100%; justify-content: center; }
   .chartCard { padding: 16px; }
+  .alert { flex-basis: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .alert:last-child { border-bottom: none; }
 }

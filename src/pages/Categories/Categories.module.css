@@ -1,0 +1,402 @@
+/* Les styles de page (header, stats, tableau…) viennent de Artisans.module.css.
+   Ce fichier ne contient que ce qui est propre à cette page. */
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--danger-subtle);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DRAWER D'ÉDITION — slide-in droite
+   ═══════════════════════════════════════════════════════════════ */
+
+.drawerRoot {
+  position: relative;
+  z-index: 1000;
+}
+
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: opacity 250ms ease-out;
+}
+.drawerBackdrop[data-closed] {
+  opacity: 0;
+}
+
+.drawerPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.14);
+  transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
+  outline: none;
+}
+.drawerPanel[data-closed] {
+  transform: translateX(100%);
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.drawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.drawerHeaderContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.drawerEyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.drawerTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.drawerKeyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.08));
+  color: var(--accent);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: fit-content;
+}
+.drawerKeyBadge svg { flex-shrink: 0; }
+
+.drawerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+  flex-shrink: 0;
+}
+.drawerClose:hover { background: var(--bg-2, #f1f5f9); color: var(--text); }
+.drawerClose:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Body ───────────────────────────────────────────────────── */
+.drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.drawerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawerSectionLabel {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.drawerField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawerFieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-2);
+}
+.drawerFieldLabel svg { color: var(--text-3); flex-shrink: 0; }
+
+.drawerRequired { color: var(--danger); font-weight: 700; }
+
+.drawerOptional {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.drawerFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.drawerInput,
+.drawerTextarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 150ms, box-shadow 150ms, background 150ms;
+}
+.drawerInput:focus,
+.drawerTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle, rgba(59, 130, 246, 0.12));
+}
+
+.drawerInputMono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.drawerInputError {
+  border-color: var(--danger);
+}
+.drawerInputError:focus {
+  box-shadow: 0 0 0 3px var(--danger-subtle, rgba(220, 38, 38, 0.12));
+}
+
+.drawerTextarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.55;
+}
+
+.drawerFieldError { font-size: var(--fs-xs); color: var(--danger); }
+
+/* ── Switch cards ──────────────────────────────────────────── */
+.drawerSwitch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 150ms, background 150ms;
+  user-select: none;
+}
+.drawerSwitch:hover { border-color: var(--text-3); }
+.drawerSwitch[data-active="true"] {
+  border-color: var(--accent-border, rgba(59, 130, 246, 0.30));
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.03));
+}
+
+.drawerSwitchText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.drawerSwitchText strong {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+.drawerSwitchText span {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.drawerSwitchTrack {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-2, #e2e8f0);
+  transition: background 150ms ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.drawerSwitch[data-active="true"] .drawerSwitchTrack {
+  background: var(--accent);
+}
+
+.drawerSwitchTrack input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.drawerSwitchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 150ms ease;
+  pointer-events: none;
+}
+.drawerSwitchTrack input:checked + .drawerSwitchThumb {
+  transform: translateX(16px);
+}
+
+/* ── Notice ─────────────────────────────────────────────────── */
+.drawerNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.06));
+  border: 1px solid var(--accent-border, rgba(59, 130, 246, 0.15));
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.drawerNotice svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.drawerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.drawerFooterHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.drawerFooterHint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-2, #f1f5f9);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-2);
+}
+
+.drawerFooterActions { display: flex; gap: 8px; }
+
+.drawerBtnSecondary,
+.drawerBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms, opacity 150ms, transform 80ms;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.drawerBtnSecondary {
+  background: transparent;
+  color: var(--text-2);
+  border-color: var(--border);
+}
+.drawerBtnSecondary:hover { background: var(--bg-2, #f8fafc); color: var(--text); }
+.drawerBtnPrimary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.drawerBtnPrimary:hover { opacity: 0.92; }
+.drawerBtnPrimary:active,
+.drawerBtnSecondary:active { transform: scale(0.98); }
+.drawerBtnPrimary:disabled,
+.drawerBtnSecondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.drawerSpinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: drawerSpin 0.7s linear infinite;
+}
+@keyframes drawerSpin { to { transform: rotate(360deg); } }
+
+/* ── Responsive & a11y ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  .drawerPanel { max-width: 100%; }
+  .drawerHeader { padding: 20px 20px 16px; }
+  .drawerBody { padding: 20px; gap: 24px; }
+  .drawerFooter { padding: 14px 20px; }
+  .drawerFooterHint { display: none; }
+  .drawerFormGrid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawerBackdrop,
+  .drawerPanel { transition: none; }
+}

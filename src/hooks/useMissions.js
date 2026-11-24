@@ -22,19 +22,23 @@ const reshapeMission = (m) => ({
 
 export const useMissions = (options = {}) => {
   const queryClient = useQueryClient()
-  const { dateRange, globalFilters, sorting, pagination, setPagination } = useFilterStore()
+  /* `dateRange` est volontairement NON destructuré :
+     la page Missions n'expose aucun sélecteur de date, donc un dateRange
+     persistant (venu d'une autre page ou d'une session obsolète) ne doit
+     PAS filtrer la liste. Le store conserve la valeur pour le Dashboard. */
+  const { globalFilters, sorting, pagination, setPagination } = useFilterStore()
 
   const missionsQuery = useQuery({
     queryKey: [
       'missions',
       {
-        dateRange,
         globalFilters,
         sorting,
         page: pagination.page,
         pageSize: pagination.pageSize,
         ...options,
       },
+      /* Pas de `dateRange` dans la clé : la liste ne dépend pas de lui. */
     ],
     queryFn: async () => {
       const adminId = await getAdminId()
@@ -48,8 +52,9 @@ export const useMissions = (options = {}) => {
           p_type: globalFilters.type || null,
           p_world: globalFilters.world || null,
           p_category_id: globalFilters.category || null,
-          p_date_start: dateRange?.start || null,
-          p_date_end: dateRange?.end || null,
+          /* Volontairement null : pas de filtre date côté Missions. */
+          p_date_start: null,
+          p_date_end: null,
           p_sort_by: sorting?.field || 'created_at',
           p_sort_dir: (sorting?.order || 'desc').toUpperCase(),
           p_page: pagination.page,
@@ -58,7 +63,10 @@ export const useMissions = (options = {}) => {
           p_user_agent: null,
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('[useMissions] RPC error:', error)
+        throw error
+      }
 
       const missions = (data?.missions || []).map(reshapeMission)
       const total = data?.total || 0

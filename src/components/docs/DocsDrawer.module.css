@@ -1,0 +1,168 @@
+.root { position: relative; z-index: 1000; }
+
+.backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: opacity 250ms ease-out;
+}
+.backdrop[data-closed] { opacity: 0; }
+
+.panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg, #fff);
+  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.14);
+  transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
+  outline: none;
+}
+.panel[data-closed] { transform: translateX(100%); }
+
+.w_md { max-width: 520px; }
+.w_lg { max-width: 720px; }
+.w_xl { max-width: 900px; }
+
+.header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #fff);
+  flex-shrink: 0;
+}
+
+.headerContent {
+  display: flex; flex-direction: column; gap: 8px;
+  min-width: 0; flex: 1;
+}
+
+.eyebrow {
+  font-size: var(--fs-xs, 11px);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3, #94a3b8);
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+.keyBadge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.08));
+  color: var(--accent, #3b82f6);
+  border-radius: 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  width: fit-content;
+}
+.keyBadge svg { flex-shrink: 0; }
+
+.close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border: none; border-radius: 8px;
+  background: transparent;
+  color: var(--text-3, #94a3b8);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+  flex-shrink: 0;
+}
+.close:hover { background: var(--bg-2, #f1f5f9); color: var(--text, #0f172a); }
+.close:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex; flex-direction: column;
+  gap: 24px;
+}
+
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #fff);
+  flex-shrink: 0;
+}
+
+.hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs, 11px);
+  color: var(--text-3, #94a3b8);
+}
+.hint kbd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-2, #f1f5f9);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 4px;
+  color: var(--text-2, #64748b);
+}
+
+.actions { display: flex; gap: 8px; align-items: center; }
+
+.btnSecondary, .btnPrimary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: var(--fs-sm, 13px);
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms, opacity 150ms, transform 80ms;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--text-2, #475569);
+  border-color: var(--border, #e5e7eb);
+}
+.btnSecondary:hover { background: var(--bg-2, #f8fafc); color: var(--text, #0f172a); }
+
+.btnPrimary {
+  background: var(--accent, #14213d);
+  color: #fff;
+  border-color: var(--accent, #14213d);
+}
+.btnPrimary:hover { opacity: 0.92; }
+.btnPrimary:active, .btnSecondary:active { transform: scale(0.98); }
+.btnPrimary:disabled, .btnSecondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinner {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .panel { max-width: 100%; }
+  .header { padding: 20px 20px 16px; }
+  .body { padding: 20px; gap: 20px; }
+  .footer { padding: 14px 20px; }
+  .hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .panel { transition: none; }
+}

@@ -12,6 +12,7 @@ const reshapeArtisan = (a) => ({
   id_artisan: a.id_artisan,
   ifu_number: a.ifu_number,
   kyc_status: a.kyc_status,
+  kyc_stage: a.kyc_stage,
   availability_status: a.availability_status,
   average_rating: a.average_rating,
   total_missions: a.total_missions,
@@ -43,12 +44,73 @@ const reshapeArtisan = (a) => ({
     : null,
 })
 
+/* null = donnée indisponible (l'UI affiche « — » et non un 0 trompeur).
+   Toutes les valeurs sont calculées par le RPC sur le même périmètre que `total`. */
 const EMPTY_STATS = {
   validated: 0,
-  pending: 0,
+  awaitingSubmission: 0,
+  toReview: 0,
+  rejected: 0,
   proMembers: 0,
   available: 0,
   suspended: 0,
+  kycValidationRate: null,
+  avgMissionsPerArtisan: null,
+  avgRating: null,
+  ratedCount: 0,
+}
+
+const normalizeStats = (s) => ({ ...EMPTY_STATS, ...(s || {}) })
+
+/* ─────────────────────────────────────────────
+   Opérations unitaires (partagées liste / détail / actions groupées)
+   La suppression de compte relève de la gestion des clients.
+───────────────────────────────────────────── */
+const nowIso = () => new Date().toISOString()
+
+const setKycStatus = async (id, status) => {
+  const { data, error } = await supabase
+    .from('artisan_profiles')
+    .update({ kyc_status: status, updated_at: nowIso() })
+    .eq('id_artisan', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+const suspendOne = async (id, { reasonCode, details, durationDays, indefinite } = {}) => {
+  const adminId = await getAdminId()
+  const { error } = await supabase.schema('admin').rpc('artisan_suspend', {
+    p_artisan_id: id,
+    p_admin_id: adminId,
+    p_reason_code: reasonCode,
+    p_details: details || null,
+    p_duration_days: durationDays ?? null,
+    p_indefinite: !!indefinite,
+  })
+  if (error) throw error
+  return { id }
+}
+
+const reactivateOne = async (id, { trainingDone, note } = {}) => {
+  const adminId = await getAdminId()
+  const { error } = await supabase.schema('admin').rpc('artisan_reactivate', {
+    p_artisan_id: id,
+    p_admin_id: adminId,
+    p_training_done: !!trainingDone,
+    p_note: note || null,
+  })
+  if (error) throw error
+  return { id }
+}
+
+/* Actions disponibles en unitaire comme en groupé */
+const BULK_ACTIONS = {
+  suspend:     { run: (id, p) => suspendOne(id, p),            done: ['Artisan suspendu', 'artisans suspendus'] },
+  reactivate:  { run: (id, p) => reactivateOne(id, p),         done: ['Artisan réactivé', 'artisans réactivés'] },
+  validateKYC: { run: (id) => setKycStatus(id, 'VALIDATED'),   done: ['KYC validé', 'KYC validés'] },
+  rejectKYC:   { run: (id) => setKycStatus(id, 'REJECTED'),    done: ['KYC rejeté', 'KYC rejetés'] },
 }
 
 /* ─────────────────────────────────────────────
@@ -57,6 +119,11 @@ const EMPTY_STATS = {
 export const useArtisans = (options = {}) => {
   const queryClient = useQueryClient()
   const { globalFilters, sorting, pagination, setPagination } = useFilterStore()
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['artisans'] })
+    queryClient.invalidateQueries({ queryKey: ['artisan'] })
+  }
 
   const artisansQuery = useQuery({
     queryKey: [
@@ -92,7 +159,7 @@ export const useArtisans = (options = {}) => {
       return {
         artisans: (data?.artisans || []).map(reshapeArtisan),
         total: data?.total || 0,
-        stats: data?.stats || EMPTY_STATS,
+        stats: normalizeStats(data?.stats),
       }
     },
     placeholderData: keepPreviousData,
@@ -110,109 +177,59 @@ export const useArtisans = (options = {}) => {
     mutationFn: async ({ id, updates }) => {
       const { data, error } = await supabase
         .from('artisan_profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: nowIso() })
         .eq('id_artisan', id)
         .select()
         .single()
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artisans'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan'] })
-      toast.success('Artisan mis à jour')
-    },
+    onSuccess: () => { invalidateAll(); toast.success('Artisan mis à jour') },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
 
   const validateKYC = useMutation({
-    mutationFn: async ({ id, status }) => {
-      const { data, error } = await supabase
-        .from('artisan_profiles')
-        .update({ kyc_status: status, updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
+    mutationFn: ({ id, status }) => setKycStatus(id, status),
     onSuccess: (d) => {
-      queryClient.invalidateQueries({ queryKey: ['artisans'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan'] })
+      invalidateAll()
       toast.success(`KYC ${d.kyc_status === 'VALIDATED' ? 'validé' : 'rejeté'}`)
     },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
 
   const suspendArtisan = useMutation({
-    mutationFn: async ({ id, reason, suspensionType, durationDays }) => {
-      const { error: userError } = await supabase
-        .from('users')
-        .update({
-          status: 'SUSPENDED',
-          ban_reason: reason || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id_user', id)
-      if (userError) throw userError
-
-      await supabase
-        .from('artisan_profiles')
-        .update({ availability_status: 'OFFLINE', updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-
-      const validTypes = ['CONSECUTIVE_DISPUTES', 'RATE_15_20', 'RATE_20_30', 'PERMANENT_BAN']
-      const finalType = validTypes.includes(suspensionType) ? suspensionType : 'RATE_15_20'
-      const suspendedUntil = durationDays
-        ? new Date(Date.now() + durationDays * 86400000).toISOString()
-        : null
-
-      await supabase.from('artisan_suspensions').insert({
-        artisan_id: id,
-        suspension_type: finalType,
-        suspended_until: suspendedUntil,
-        is_active: true,
-      })
-
-      return { id }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artisans'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan'] })
-      toast.success('Artisan suspendu')
-    },
+    mutationFn: ({ id, ...payload }) => suspendOne(id, payload),
+    onSuccess: () => { invalidateAll(); toast.success('Artisan suspendu') },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
 
   const reactivateArtisan = useMutation({
-    mutationFn: async ({ id }) => {
-      await supabase
-        .from('artisan_suspensions')
-        .update({ is_active: false, lifted_at: new Date().toISOString() })
-        .eq('artisan_id', id)
-        .eq('is_active', true)
+    mutationFn: ({ id, ...p }) => reactivateOne(id, p),
+    onSuccess: () => { invalidateAll(); toast.success('Artisan réactivé') },
+    onError: (e) => toast.error(`Erreur: ${e.message}`),
+  })
 
-      const { error } = await supabase
-        .from('users')
-        .update({
-          status: 'ACTIVE',
-          ban_reason: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id_user', id)
-      if (error) throw error
-
-      await supabase
-        .from('artisan_profiles')
-        .update({ availability_status: 'AVAILABLE', updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-
-      return { id }
+  /* Action sur 1 ou N artisans : { action, ids, payload }
+     Chaque id est traité indépendamment : un échec n'annule pas les autres. */
+  const runAction = useMutation({
+    mutationFn: async ({ action, ids, payload }) => {
+      const def = BULK_ACTIONS[action]
+      if (!def) throw new Error(`Action inconnue : ${action}`)
+      const settled = await Promise.allSettled(ids.map((id) => def.run(id, payload)))
+      const failed = settled.filter((s) => s.status === 'rejected')
+      return {
+        action,
+        total: ids.length,
+        ok: ids.length - failed.length,
+        failed: failed.length,
+        firstError: failed[0]?.reason?.message,
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artisans'] })
-      queryClient.invalidateQueries({ queryKey: ['artisan'] })
-      toast.success('Artisan réactivé')
+    onSuccess: ({ action, total, ok, failed, firstError }) => {
+      invalidateAll()
+      const [one, many] = BULK_ACTIONS[action].done
+      if (ok > 0) toast.success(total === 1 ? one : `${ok} ${many}`)
+      if (failed > 0) toast.error(`${failed} échec(s)${firstError ? ` : ${firstError}` : ''}`)
     },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
@@ -238,6 +255,9 @@ export const useArtisans = (options = {}) => {
 
     reactivateArtisan: reactivateArtisan.mutate,
     isReactivating: reactivateArtisan.isPending,
+
+    runAction: runAction.mutateAsync,
+    isRunningAction: runAction.isPending,
   }
 }
 
@@ -270,7 +290,7 @@ export const useArtisan = (id, options = {}) => {
     mutationFn: async ({ updates }) => {
       const { data, error } = await supabase
         .from('artisan_profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: nowIso() })
         .eq('id_artisan', id)
         .select()
         .single()
@@ -282,16 +302,7 @@ export const useArtisan = (id, options = {}) => {
   })
 
   const validateKYC = useMutation({
-    mutationFn: async ({ status, notes }) => {
-      const { data, error } = await supabase
-        .from('artisan_profiles')
-        .update({ kyc_status: status, updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    },
+    mutationFn: ({ status }) => setKycStatus(id, status),
     onSuccess: (d) => {
       invalidateAll()
       toast.success(`KYC ${d.kyc_status === 'VALIDATED' ? 'validé' : 'rejeté'}`)
@@ -300,66 +311,13 @@ export const useArtisan = (id, options = {}) => {
   })
 
   const suspendArtisan = useMutation({
-    mutationFn: async ({ reason, suspensionType, durationDays }) => {
-      const { error: ue } = await supabase
-        .from('users')
-        .update({
-          status: 'SUSPENDED',
-          ban_reason: reason || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id_user', id)
-      if (ue) throw ue
-
-      await supabase
-        .from('artisan_profiles')
-        .update({ availability_status: 'OFFLINE', updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-
-      const valid = ['CONSECUTIVE_DISPUTES', 'RATE_15_20', 'RATE_20_30', 'PERMANENT_BAN']
-      const finalType = valid.includes(suspensionType) ? suspensionType : 'RATE_15_20'
-      const suspendedUntil = durationDays
-        ? new Date(Date.now() + durationDays * 86400000).toISOString()
-        : null
-
-      await supabase.from('artisan_suspensions').insert({
-        artisan_id: id,
-        suspension_type: finalType,
-        suspended_until: suspendedUntil,
-        is_active: true,
-      })
-
-      return { id }
-    },
+    mutationFn: (payload) => suspendOne(id, payload),
     onSuccess: () => { invalidateAll(); toast.success('Artisan suspendu') },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
 
   const reactivateArtisan = useMutation({
-    mutationFn: async () => {
-      await supabase
-        .from('artisan_suspensions')
-        .update({ is_active: false, lifted_at: new Date().toISOString() })
-        .eq('artisan_id', id)
-        .eq('is_active', true)
-
-      const { error } = await supabase
-        .from('users')
-        .update({
-          status: 'ACTIVE',
-          ban_reason: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id_user', id)
-      if (error) throw error
-
-      await supabase
-        .from('artisan_profiles')
-        .update({ availability_status: 'AVAILABLE', updated_at: new Date().toISOString() })
-        .eq('id_artisan', id)
-
-      return { id }
-    },
+    mutationFn: (p) => reactivateOne(id, p),
     onSuccess: () => { invalidateAll(); toast.success('Artisan réactivé') },
     onError: (e) => toast.error(`Erreur: ${e.message}`),
   })
@@ -385,3 +343,21 @@ export const useArtisan = (id, options = {}) => {
     isReactivating: reactivateArtisan.isPending,
   }
 }
+
+/* ─────────────────────────────────────────────
+   Catalogue des motifs de suspension (RPC admin.suspension_reasons_list)
+   Mis en cache 10 minutes : liste quasi statique côté back-office.
+───────────────────────────────────────────── */
+export const useSuspensionReasons = () =>
+  useQuery({
+    queryKey: ['suspension-reasons'],
+    queryFn: async () => {
+      const adminId = await getAdminId()
+      const { data, error } = await supabase
+        .schema('admin')
+        .rpc('suspension_reasons_list', { p_admin_id: adminId })
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 10 * 60 * 1000,
+  })

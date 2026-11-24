@@ -8,8 +8,8 @@ export const useDashboard = (options = {}) => {
     queryFn: async () => {
       const adminId = await getAdminId()
 
-      /* Les 2 RPCs en parallèle */
-      const [overview, recent] = await Promise.all([
+      /* Les 4 RPCs en parallèle */
+      const [overview, recent, engagement, acquisition] = await Promise.all([
         supabase
           .schema('admin')
           .rpc('dashboard_overview', { p_admin_id: adminId }),
@@ -19,10 +19,24 @@ export const useDashboard = (options = {}) => {
             p_admin_id: adminId,
             p_limit: 10,
           }),
+        supabase
+          .schema('admin')
+          .rpc('dashboard_engagement', { p_admin_id: adminId }),
+        supabase
+          .schema('admin')
+          .rpc('dashboard_acquisition', { p_admin_id: adminId }),
       ])
 
       if (overview.error) throw overview.error
       if (recent.error) throw recent.error
+
+      /* Engagement et acquisition ne doivent jamais casser le dashboard */
+      if (engagement.error) {
+        console.error('[dashboard_engagement]', engagement.error)
+      }
+      if (acquisition.error) {
+        console.error('[dashboard_acquisition]', acquisition.error)
+      }
 
       const o = overview.data || {}
 
@@ -48,6 +62,8 @@ export const useDashboard = (options = {}) => {
           paymentMethods: o.charts?.paymentMethods || { labels: [], values: [] },
         },
         recentMissions: recent.data || [],
+        engagement: engagement.error ? null : engagement.data || null,
+        acquisition: acquisition.error ? null : acquisition.data || null,
       }
     },
     staleTime: 2 * 60 * 1000,   // 2 min — le dashboard peut être légèrement mis en cache

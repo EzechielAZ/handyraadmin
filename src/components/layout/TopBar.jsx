@@ -17,7 +17,7 @@ const TopBar = () => {
   const profileRef = useRef(null)
 
   const location = useLocation()
-  const { user, logout } = useAuthStore()
+  const { user, role, logout } = useAuthStore()
   const { toggleSidebar } = useUIStore()
 
   useEffect(() => {
@@ -45,6 +45,8 @@ const TopBar = () => {
     if (p.startsWith('/hardware'))      return 'Quincailleries'
     if (p.startsWith('/reports'))       return 'Rapports'
     if (p.startsWith('/subscriptions')) return 'Abonnements'
+    if (p.startsWith('/categories'))    return 'Catégories'
+    if (p.startsWith('/app-settings'))  return 'Paramètres de l\'application'
     if (p.startsWith('/settings'))      return 'Paramètres'
     return 'Handyra Admin'
   }
@@ -172,7 +174,7 @@ const TopBar = () => {
                 {user?.full_name?.split(' ')[0] || 'Admin'}
               </span>
               <span className={styles.profileRole}>
-                {user?.user_role || 'Administrateur'}
+                {role || 'Administrateur'}
               </span>
             </span>
             <ChevronDown
@@ -212,7 +214,7 @@ const TopBar = () => {
                 <button
                   type="button"
                   className={[styles.menuItem, styles.menuItemDanger].join(' ')}
-                  onClick={logout}
+                  onClick={() => logout()}
                 >
                   <LogOut size={13} /><span>Déconnexion</span>
                 </button>
