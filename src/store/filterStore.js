@@ -137,7 +137,7 @@ export const useFilterStore = create(
         }
 
         set({
-          dateRange: { start, end, label },
+          dateRange: { key: typeof range === 'string' ? range : 'custom', start, end, label },
           pagination: { ...get().pagination, page: 1 },
         })
       },
