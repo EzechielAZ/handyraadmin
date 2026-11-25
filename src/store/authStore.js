@@ -5,7 +5,8 @@ import toast from 'react-hot-toast'
 
 const NOT_ADMIN_MESSAGE = 'Accès réservé aux administrateurs'
 
-// Permissions par rôle admin (admin.roles)
+// ─── Permissions par rôle admin (admin.roles) ───
+// Les permissions docs_* sont alignées sur admin.docs_permissions (voir migration SQL).
 const getPermissionsForRole = (role) => {
   const permissions = {
     SUPER_ADMIN: [
@@ -26,6 +27,16 @@ const getPermissionsForRole = (role) => {
       'export_data',
       'manage_roles',
       'view_audit_logs',
+      // Documentation
+      'view_docs',
+      'manage_docs',
+      'manage_features',
+      'manage_releases',
+      'manage_issues',
+      'manage_pages',
+      'manage_adrs',
+      'manage_runbooks',
+      'manage_glossary',
     ],
     ADMIN: [
       'view_dashboard',
@@ -39,6 +50,16 @@ const getPermissionsForRole = (role) => {
       'manage_subscriptions',
       'view_settings',
       'view_categories',
+      // Documentation
+      'view_docs',
+      'manage_docs',
+      'manage_features',
+      'manage_releases',
+      'manage_issues',
+      'manage_pages',
+      'manage_adrs',
+      'manage_runbooks',
+      'manage_glossary',
     ],
     MODERATOR: [
       'view_dashboard',
@@ -46,6 +67,11 @@ const getPermissionsForRole = (role) => {
       'manage_users',
       'view_missions',
       'view_reports',
+      // Documentation — lecture + écriture features/pages/issues
+      'view_docs',
+      'manage_features',
+      'manage_pages',
+      'manage_issues',
     ],
     FINANCE: [
       'view_dashboard',
@@ -54,6 +80,8 @@ const getPermissionsForRole = (role) => {
       'view_reports',
       'view_subscriptions',
       'export_data',
+      // Documentation — lecture seule
+      'view_docs',
     ],
     OPERATIONS: [
       'view_dashboard',
@@ -62,6 +90,10 @@ const getPermissionsForRole = (role) => {
       'manage_hpo',
       'manage_hardware',
       'view_reports',
+      // Documentation — écriture features/issues
+      'view_docs',
+      'manage_features',
+      'manage_issues',
     ],
   }
 
@@ -209,7 +241,7 @@ export const useAuthStore = create(
         }
       },
 
-      // Appelé par onAuthStateChange (déconnexion depuis un autre onglet, token expiré...)
+      // Appelé par onAuthStateChange (déconnexion depuis un autre onglet, token expiré…)
       handleSignedOut: () => set({ ...emptyAuthState, isLoading: false }),
 
       handleTokenRefreshed: (session) => {

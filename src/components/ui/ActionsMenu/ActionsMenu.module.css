@@ -19,22 +19,26 @@
   border-color: var(--border);
 }
 
+/* Rendu dans document.body via un portail : position fixed, top/left posés en JS */
 .menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  z-index: 50;
+  position: fixed;
+  z-index: 1000; /* au-dessus du footer sticky du tableau (z-index: 10) */
   min-width: 190px;
   padding: 4px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(10, 10, 10, 0.1);
-  animation: dropIn 120ms ease;
+  animation: dropDown 120ms ease;
 }
-.menuRight { right: 0; }
+.menuUp { animation-name: dropUp; }
 
-@keyframes dropIn {
+@keyframes dropDown {
   from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dropUp {
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 

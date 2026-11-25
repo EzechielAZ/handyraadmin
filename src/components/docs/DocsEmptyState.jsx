@@ -1,38 +1,30 @@
-/**
- * Empty state générique.
- * Mirror du pattern existant : icône en disque, titre, description, CTA.
- */
-
-import { Icon } from './Icon'
+import {
+  Plus, RotateCcw, Book, FileSignature, FileText, Rocket,
+  Calendar, Inbox, AlertCircle, Archive,
+} from 'lucide-react'
 import styles from './DocsEmptyState.module.css'
 
-export const DocsEmptyState = ({
-  icon = 'Package',
-  title = 'Aucun résultat',
-  description,
-  action,           // { label, icon, onClick, variant }
-  variant = 'default', // 'default' | 'error' | 'search'
-}) => {
-  const iconBg = variant === 'error'
-    ? 'var(--danger, #dc2626)'
-    : variant === 'search'
-      ? '#94a3b8'
-      : 'var(--accent, #14213d)'
+const ICONS = {
+  Plus, RotateCcw, Book, FileSignature, FileText, Rocket,
+  Calendar, Inbox, AlertCircle, Archive,
+}
+
+export const DocsEmptyState = ({ icon = 'Inbox', title, description, action }) => {
+  const Icon = typeof icon === 'string' ? (ICONS[icon] || Inbox) : icon
+  const ActionIcon = action?.icon && typeof action.icon === 'string'
+    ? (ICONS[action.icon] || Plus)
+    : action?.icon
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.iconDisc} style={{ background: iconBg }} aria-hidden="true">
-        <Icon name={icon} size={22} strokeWidth={2} />
+      <div className={styles.icon}>
+        <Icon size={24} />
       </div>
       <h3 className={styles.title}>{title}</h3>
       {description && <p className={styles.description}>{description}</p>}
       {action && (
-        <button
-          type="button"
-          className={`${styles.action} ${variant === 'error' ? styles.actionDanger : ''}`}
-          onClick={action.onClick}
-        >
-          {action.icon && <Icon name={action.icon} size={13} />}
+        <button type="button" className={styles.action} onClick={action.onClick}>
+          {ActionIcon && <ActionIcon size={13} />}
           {action.label}
         </button>
       )}

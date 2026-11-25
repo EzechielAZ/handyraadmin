@@ -1,66 +1,40 @@
-/**
- * Barre de filtres de page docs.
- * - Recherche avec debounce côté parent (via useDebounce)
- * - Filtres dropdown (native <select> stylé — peut être swap pour ui.Select)
- * - Compteur de filtres actifs + bouton "Effacer"
- * - Slot `right` pour boutons d'action (Rafraîchir, Nouveau)
- */
-
-import { Search, X, ChevronDown } from 'lucide-react'
+import { X } from 'lucide-react'
+import { Search } from 'lucide-react'
+import { Input, Select } from '../ui'
 import styles from './DocsFilters.module.css'
 
 export const DocsFilters = ({
   search,
   onSearchChange,
   searchPlaceholder = 'Rechercher…',
-  filters = [],       // [{ key, label, value, options: [{value,label}], onChange }]
+  filters = [],       // [{ key, label, value, options: [{value,label}], onChange, searchable }]
   onClear,
   activeCount = 0,
   right,
-  loading = false,
 }) => (
   <div className={styles.bar}>
     <div className={styles.left}>
       <div className={styles.searchWrap}>
-        <Search size={12} className={styles.searchIcon} />
-        <input
-          type="search"
-          className={styles.searchInput}
+        <Input
+          size="md"
+          icon={Search}
+          placeholder={searchPlaceholder}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          aria-label="Rechercher"
         />
-        {search && (
-          <button
-            type="button"
-            className={styles.searchClear}
-            onClick={() => onSearchChange('')}
-            aria-label="Effacer la recherche"
-          >
-            <X size={11} />
-          </button>
-        )}
       </div>
 
       {filters.map((f) => (
         <div key={f.key} className={styles.filterItem}>
-          <select
-            className={styles.select}
+          <Select
+            size="md"
+            options={f.options}
             value={f.value ?? 'all'}
-            onChange={(e) =>
-              f.onChange(e.target.value === 'all' ? null : e.target.value)
-            }
-            aria-label={f.label}
-            title={f.label}
-          >
-            {f.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={11} className={styles.selectChevron} aria-hidden="true" />
+            onChange={(v) => f.onChange(v === 'all' ? null : v)}
+            searchable={f.searchable ?? f.options.length > 8}
+            clearable={false}
+            placeholder={f.placeholder || f.label}
+          />
         </div>
       ))}
 

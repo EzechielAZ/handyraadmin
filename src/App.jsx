@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
-import {Spinner} from './components/ui'
+import { Spinner } from './components/ui'
 import { useAuthStore } from './store/authStore'
 import { supabase } from './lib/supabase'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -10,7 +10,7 @@ import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import './App.css'
 
-// Lazy load pages
+// ─── Pages métier ───
 const Artisans         = lazy(() => import('./pages/Artisans'))
 const ArtisanDetail    = lazy(() => import('./pages/Artisans/ArtisanDetail'))
 const Missions         = lazy(() => import('./pages/Missions'))
@@ -34,6 +34,26 @@ const Settings         = lazy(() => import('./pages/Settings'))
 const Categories       = lazy(() => import('./pages/Categories'))
 const AppSettings      = lazy(() => import('./pages/AppSettings'))
 
+// ─── Module Documentation ───
+// Les barrels (Releases/, Issues/) exposent désormais `default` grâce au
+// correctif des index.js. Les dossiers sans barrel (Features/, Adrs/,
+// Glossary/) utilisent `index.jsx` comme point d'entrée — donc `lazy()` y
+// trouve aussi un `default`. Uniforme et simple.
+const DocsDashboard      = lazy(() => import('./pages/Docs/Dashboard'))
+const FeaturesPage       = lazy(() => import('./pages/Docs/Features'))
+const FeatureDetailPage  = lazy(() => import('./pages/Docs/Features/FeatureDetail'))
+const ReleasesPage       = lazy(() => import('./pages/Docs/Releases'))
+const ReleaseDetailPage  = lazy(() => import('./pages/Docs/Releases/ReleaseDetail'))
+const IssuesPage         = lazy(() => import('./pages/Docs/Issues'))
+const IssueDetailPage    = lazy(() => import('./pages/Docs/Issues/IssueDetail'))
+const PagesPage          = lazy(() => import('./pages/Docs/Pages'))
+const PageDetailPage     = lazy(() => import('./pages/Docs/Pages/PageDetail'))
+const AdrsPage           = lazy(() => import('./pages/Docs/Adrs'))
+const AdrDetailPage      = lazy(() => import('./pages/Docs/Adrs/AdrDetail'))
+const RunbooksPage       = lazy(() => import('./pages/Docs/Runbooks'))
+const GlossaryPage       = lazy(() => import('./pages/Docs/Glossary'))
+const ActivityPage       = lazy(() => import('./pages/Docs/Activity'))
+
 // Autorise la route si l'utilisateur a au moins une des permissions demandées
 const RequirePermission = ({ anyOf, children }) => {
   const allowed = useAuthStore((s) => anyOf.some((p) => s.permissions.includes(p)))
@@ -43,7 +63,6 @@ const RequirePermission = ({ anyOf, children }) => {
 function App() {
   const { isAuthenticated } = useAuthStore()
 
-  // Valide la session et le rôle admin au démarrage
   useEffect(() => {
     useAuthStore.getState().checkSession()
 
@@ -114,6 +133,79 @@ function App() {
                     <AppSettings />
                   </RequirePermission>
                 } />
+
+                {/* ─── Module Documentation ─── */}
+                <Route path="/docs" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_features', 'manage_pages', 'manage_issues', 'manage_releases', 'manage_adrs', 'manage_runbooks', 'manage_glossary']}>
+                    <DocsDashboard />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/features" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_features']}>
+                    <FeaturesPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/features/:ref" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_features']}>
+                    <FeatureDetailPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/releases" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_releases']}>
+                    <ReleasesPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/releases/:ref" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_releases']}>
+                    <ReleaseDetailPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/issues" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_issues']}>
+                    <IssuesPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/issues/:ref" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_issues']}>
+                    <IssueDetailPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/pages" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_pages']}>
+                    <PagesPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/pages/:ref" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_pages']}>
+                    <PageDetailPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/adrs" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_adrs']}>
+                    <AdrsPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/adrs/:ref" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_adrs']}>
+                    <AdrDetailPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/runbooks" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_runbooks']}>
+                    <RunbooksPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/glossary" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs', 'manage_glossary']}>
+                    <GlossaryPage />
+                  </RequirePermission>
+                } />
+                <Route path="/docs/activity" element={
+                  <RequirePermission anyOf={['view_docs', 'manage_docs']}>
+                    <ActivityPage />
+                  </RequirePermission>
+                } />
+
                 <Route path="*"               element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>

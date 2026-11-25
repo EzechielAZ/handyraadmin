@@ -1,0 +1,90 @@
+.page {
+  padding: var(--page-pad, 24px);
+  max-width: var(--content-max, 1400px);
+  margin: 0 auto;
+}
+
+/* ─── Cells ─── */
+.codeCell {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.namePrimary {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameSummary {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 380px;
+}
+
+.moduleCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.timeCell {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  cursor: help;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Summary bar (statuts rapides) ─── */
+.summaryBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.summaryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.summaryChip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+.summaryChip strong {
+  margin-left: 2px;
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}

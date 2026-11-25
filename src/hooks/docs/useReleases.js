@@ -84,14 +84,37 @@ export const useReleaseReadiness = (releaseId, options = {}) => {
 /* ─── Mutations ─── */
 export const useReleaseMutations = () => {
   const qc = useQueryClient()
+
+  /*
+   * IMPORTANT : la page de détail lit le cache via `detail(ref)` où `ref` est
+   * le paramètre d'URL (version), alors que les mutations connaissent l'UUID
+   * (`releaseId`). On invalide donc par PRÉFIXE (`releases.all()`), ce qui
+   * couvre liste, détail (quelle que soit la clé), progress et readiness.
+   * Prérequis : dans keys.js, detail/progress/readiness/list commencent par all().
+   */
   const invalidateList = () => {
     qc.invalidateQueries({ queryKey: docsKeys.releases.all() })
     qc.invalidateQueries({ queryKey: docsKeys.dashboard() })
   }
-  const invalidateDetail = (ref) => {
-    qc.invalidateQueries({ queryKey: docsKeys.releases.detail(ref) })
-    qc.invalidateQueries({ queryKey: docsKeys.releases.progress(ref) })
-    qc.invalidateQueries({ queryKey: docsKeys.releases.readiness(ref) })
+  // L'argument est conservé pour compatibilité, mais ignoré.
+  // eslint-disable-next-line no-unused-vars
+  const invalidateDetail = (_releaseId) => {
+    qc.invalidateQueries({ queryKey: docsKeys.releases.all() })
+  }
+
+  /*
+   * Mises à jour optimistes : retrouvent l'entrée de cache du détail en
+   * comparant release.id_release, quelle que soit la clé (version ou UUID).
+   */
+  const patchDetail = (releaseId, patch) => {
+    const snapshots = qc.getQueriesData({ queryKey: docsKeys.releases.all() })
+    qc.setQueriesData({ queryKey: docsKeys.releases.all() }, (old) =>
+      old?.release?.id_release === releaseId ? patch(old) : old,
+    )
+    return snapshots
+  }
+  const restoreDetail = (snapshots) => {
+    snapshots?.forEach(([key, data]) => qc.setQueryData(key, data))
   }
 
   /* ─── Release ─── */
@@ -107,10 +130,6 @@ export const useReleaseMutations = () => {
     }),
     onSuccess: (data) => {
       invalidateList()
-      qc.setQueryData(docsKeys.releases.detail(data.release.id_release), {
-        release: data.release, objectives: [], features: [],
-        checklist: [], signoffs: [], progress: null,
-      })
       toast.success(`Release ${data.release.version} créée`)
     },
   })
@@ -119,7 +138,6 @@ export const useReleaseMutations = () => {
     mutationFn: ({ id, payload }) =>
       adminRpc('docs_release_update', { p_release_id: id, p_payload: payload }),
     onSuccess: (data) => {
-      invalidateDetail(data.release.id_release)
       invalidateList()
       toast.success('Release mise à jour')
     },
@@ -191,23 +209,19 @@ export const useReleaseMutations = () => {
         p_evidence_url: evidenceUrl || null,
       }),
     onMutate: async ({ releaseId, itemId }) => {
-      await qc.cancelQueries({ queryKey: docsKeys.releases.detail(releaseId) })
-      const prev = qc.getQueryData(docsKeys.releases.detail(releaseId))
-      qc.setQueryData(docsKeys.releases.detail(releaseId), (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          features: (old.features || []).map((f) =>
-            f.id_item === itemId
-              ? { ...f, is_checked: true, checked_at: new Date().toISOString() }
-              : f,
-          ),
-        }
-      })
-      return { prev, releaseId }
+      await qc.cancelQueries({ queryKey: docsKeys.releases.all() })
+      const snapshots = patchDetail(releaseId, (old) => ({
+        ...old,
+        features: (old.features || []).map((f) =>
+          f.id_item === itemId
+            ? { ...f, is_checked: true, checked_at: new Date().toISOString() }
+            : f,
+        ),
+      }))
+      return { snapshots }
     },
     onError: (err, vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(docsKeys.releases.detail(ctx.releaseId), ctx.prev)
+      restoreDetail(ctx?.snapshots)
       toast.error(getDocsErrorMessage(err))
     },
     onSuccess: (data) => {
@@ -225,23 +239,19 @@ export const useReleaseMutations = () => {
         p_item_id: itemId, p_reason: reason || null,
       }),
     onMutate: async ({ releaseId, itemId }) => {
-      await qc.cancelQueries({ queryKey: docsKeys.releases.detail(releaseId) })
-      const prev = qc.getQueryData(docsKeys.releases.detail(releaseId))
-      qc.setQueryData(docsKeys.releases.detail(releaseId), (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          features: (old.features || []).map((f) =>
-            f.id_item === itemId
-              ? { ...f, is_checked: false, checked_at: null, checked_by: null }
-              : f,
-          ),
-        }
-      })
-      return { prev, releaseId }
+      await qc.cancelQueries({ queryKey: docsKeys.releases.all() })
+      const snapshots = patchDetail(releaseId, (old) => ({
+        ...old,
+        features: (old.features || []).map((f) =>
+          f.id_item === itemId
+            ? { ...f, is_checked: false, checked_at: null, checked_by: null }
+            : f,
+        ),
+      }))
+      return { snapshots }
     },
     onError: (err, vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(docsKeys.releases.detail(ctx.releaseId), ctx.prev)
+      restoreDetail(ctx?.snapshots)
       toast.error(getDocsErrorMessage(err))
     },
     onSettled: (data, err, vars) => {
@@ -257,7 +267,7 @@ export const useReleaseMutations = () => {
         p_item_ids: itemIds, p_note: note || null,
       }),
     onSuccess: (data, vars) => {
-      if (vars.releaseId) invalidateDetail(vars.releaseId)
+      invalidateDetail(vars.releaseId)
       toast.success(`${data.checked} coché(s)${data.skipped ? `, ${data.skipped} déjà cochés` : ''}`)
     },
   })
@@ -280,23 +290,19 @@ export const useReleaseMutations = () => {
         p_item_id: itemId, p_note: note || null, p_evidence_url: evidenceUrl || null,
       }),
     onMutate: async ({ releaseId, itemId }) => {
-      await qc.cancelQueries({ queryKey: docsKeys.releases.detail(releaseId) })
-      const prev = qc.getQueryData(docsKeys.releases.detail(releaseId))
-      qc.setQueryData(docsKeys.releases.detail(releaseId), (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          checklist: (old.checklist || []).map((c) =>
-            c.id_item === itemId
-              ? { ...c, is_checked: true, checked_at: new Date().toISOString() }
-              : c,
-          ),
-        }
-      })
-      return { prev, releaseId }
+      await qc.cancelQueries({ queryKey: docsKeys.releases.all() })
+      const snapshots = patchDetail(releaseId, (old) => ({
+        ...old,
+        checklist: (old.checklist || []).map((c) =>
+          c.id_item === itemId
+            ? { ...c, is_checked: true, checked_at: new Date().toISOString() }
+            : c,
+        ),
+      }))
+      return { snapshots }
     },
     onError: (err, vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(docsKeys.releases.detail(ctx.releaseId), ctx.prev)
+      restoreDetail(ctx?.snapshots)
       toast.error(getDocsErrorMessage(err))
     },
     onSettled: (data, err, vars) => {
@@ -343,7 +349,6 @@ export const useReleaseMutations = () => {
     mutationFn: (releaseId) =>
       adminRpc('docs_release_validate', { p_release_id: releaseId }),
     onSuccess: (data) => {
-      invalidateDetail(data.release.id_release)
       invalidateList()
       toast.success(`Release ${data.release.version} validée`)
     },
@@ -353,7 +358,6 @@ export const useReleaseMutations = () => {
     mutationFn: (releaseId) =>
       adminRpc('docs_release_publish', { p_release_id: releaseId }),
     onSuccess: (data) => {
-      invalidateDetail(data.release.id_release)
       invalidateList()
       qc.invalidateQueries({ queryKey: docsKeys.features.all() })
       toast.success(
@@ -366,7 +370,6 @@ export const useReleaseMutations = () => {
     mutationFn: ({ releaseId, reason }) =>
       adminRpc('docs_release_rollback', { p_release_id: releaseId, p_reason: reason }),
     onSuccess: (data) => {
-      invalidateDetail(data.release.id_release)
       invalidateList()
       toast.success(`Rollback effectué sur ${data.release.version}`)
     },

@@ -1,0 +1,57 @@
+.page {
+  padding: var(--page-pad, 24px);
+  max-width: var(--content-max, 1400px);
+  margin: 0 auto;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1280px) { .statsGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .statsGrid { grid-template-columns: 1fr; } }
+
+.versionCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.versionLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.codename {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.dateCell { font-size: var(--fs-sm); color: var(--text-2); cursor: help; }
+
+.lateCell {
+  font-size: var(--fs-sm);
+  color: #991b1b;
+  font-weight: var(--fw-medium);
+  cursor: help;
+}
+
+.mutedCell { color: var(--text-3); font-size: var(--fs-sm); }
+
+.summaryCell {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 380px;
+  display: inline-block;
+}

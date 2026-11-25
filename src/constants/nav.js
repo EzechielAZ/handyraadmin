@@ -20,6 +20,7 @@
   HelpCircle,
   LogOut,
   Layers,
+  BookOpen,
 } from 'lucide-react'
 
 /*
@@ -31,7 +32,7 @@
  * Rôles admin (admin.roles) : SUPER_ADMIN, ADMIN, MODERATOR, FINANCE, OPERATIONS
  */
 
-// Navigation principale
+// ─── Navigation principale ───
 export const mainNavigation = [
   {
     id: 'dashboard',
@@ -121,9 +122,36 @@ export const mainNavigation = [
     path: '/categories',
     permissions: ['view_categories', 'manage_categories'],
   },
+  {
+    id: 'docs',
+    label: 'Documentation',
+    icon: BookOpen,
+    path: '/docs',
+    permissions: [
+      'view_docs',
+      'manage_docs',
+      'manage_features',
+      'manage_releases',
+      'manage_issues',
+      'manage_pages',
+      'manage_adrs',
+      'manage_runbooks',
+      'manage_glossary',
+    ],
+    children: [
+      { id: 'docs-features', label: 'Features',   path: '/docs/features' },
+      { id: 'docs-releases', label: 'Releases',   path: '/docs/releases' },
+      { id: 'docs-issues',   label: 'Issues',     path: '/docs/issues' },
+      { id: 'docs-pages',    label: 'Pages',      path: '/docs/pages' },
+      { id: 'docs-adrs',     label: 'ADRs',       path: '/docs/adrs' },
+      { id: 'docs-runbooks', label: 'Runbooks',   path: '/docs/runbooks' },
+      { id: 'docs-glossary', label: 'Glossaire',  path: '/docs/glossary' },
+      { id: 'docs-activity', label: 'Activité',   path: '/docs/activity' },
+    ],
+  },
 ]
 
-// Navigation secondaire
+// ─── Navigation secondaire ───
 export const secondaryNavigation = [
   {
     id: 'app-settings',
@@ -169,7 +197,7 @@ export const secondaryNavigation = [
   },
 ]
 
-// Navigation utilisateur (accessible à tout administrateur connecté)
+// ─── Navigation utilisateur ───
 export const userNavigation = [
   {
     id: 'profile',
@@ -213,7 +241,7 @@ export const userNavigation = [
   },
 ]
 
-// Navigation par rôle admin (ids des items visibles)
+// ─── Navigation par rôle admin ───
 const byIds = (ids) =>
   [...mainNavigation, ...secondaryNavigation].filter((item) => ids.includes(item.id))
 
@@ -221,102 +249,135 @@ export const roleBasedNavigation = {
   SUPER_ADMIN: [...mainNavigation, ...secondaryNavigation],
   ADMIN: byIds([
     'dashboard', 'artisans', 'missions', 'users', 'payments', 'hpo', 'hardware',
-    'reports', 'subscriptions', 'categories', 'logistics', 'badges', 'calendar',
+    'reports', 'subscriptions', 'categories', 'docs',
+    'logistics', 'badges', 'calendar',
   ]),
-  MODERATOR: byIds(['dashboard', 'artisans', 'missions', 'users', 'reports', 'badges', 'calendar']),
-  FINANCE: byIds(['dashboard', 'payments', 'subscriptions', 'reports']),
+  MODERATOR: byIds([
+    'dashboard', 'artisans', 'missions', 'users', 'reports', 'badges', 'calendar', 'docs',
+  ]),
+  FINANCE: byIds(['dashboard', 'payments', 'subscriptions', 'reports', 'docs']),
   OPERATIONS: byIds([
     'dashboard', 'artisans', 'missions', 'hpo', 'hardware', 'reports',
-    'logistics', 'badges', 'calendar',
+    'docs', 'logistics', 'badges', 'calendar',
   ]),
 }
 
-// Breadcrumbs mapping
+// ─── Breadcrumbs ───
 export const breadcrumbs = {
   '/dashboard': [{ label: 'Tableau de bord' }],
 
-  '/artisans': [
-    { label: 'Artisans', path: '/artisans' }
-  ],
+  '/artisans': [{ label: 'Artisans', path: '/artisans' }],
   '/artisans/:id': [
     { label: 'Artisans', path: '/artisans' },
-    { label: 'Détails artisan' }
+    { label: 'Détails artisan' },
   ],
 
-  '/missions': [
-    { label: 'Missions', path: '/missions' }
-  ],
+  '/missions': [{ label: 'Missions', path: '/missions' }],
   '/missions/:id': [
     { label: 'Missions', path: '/missions' },
-    { label: 'Détails mission' }
+    { label: 'Détails mission' },
   ],
 
-  '/users': [
-    { label: 'Clients', path: '/users' }
-  ],
+  '/users': [{ label: 'Clients', path: '/users' }],
   '/users/:id': [
     { label: 'Clients', path: '/users' },
-    { label: 'Détails client' }
+    { label: 'Détails client' },
   ],
 
-  '/payments': [
-    { label: 'Paiements', path: '/payments' }
-  ],
+  '/payments': [{ label: 'Paiements', path: '/payments' }],
 
-  '/hpo': [
-    { label: 'HPO', path: '/hpo' }
-  ],
+  '/hpo': [{ label: 'HPO', path: '/hpo' }],
   '/hpo/supervisors': [
     { label: 'HPO', path: '/hpo' },
-    { label: 'Superviseurs' }
+    { label: 'Superviseurs' },
   ],
   '/hpo/agents': [
     { label: 'HPO', path: '/hpo' },
-    { label: 'Agents HPO' }
+    { label: 'Agents HPO' },
   ],
   '/hpo/contracts': [
     { label: 'HPO', path: '/hpo' },
-    { label: 'Contrats' }
+    { label: 'Contrats' },
   ],
 
-  '/hardware': [
-    { label: 'Quincailleries', path: '/hardware' }
-  ],
+  '/hardware': [{ label: 'Quincailleries', path: '/hardware' }],
 
-  '/reports': [
-    { label: 'Rapports', path: '/reports' }
-  ],
+  '/reports': [{ label: 'Rapports', path: '/reports' }],
 
-  '/subscriptions': [
-    { label: 'Abonnements', path: '/subscriptions' }
-  ],
+  '/subscriptions': [{ label: 'Abonnements', path: '/subscriptions' }],
 
-  '/categories': [
-    { label: 'Catégories', path: '/categories' }
-  ],
+  '/categories': [{ label: 'Catégories', path: '/categories' }],
 
-  '/app-settings': [
-    { label: 'Paramètres app', path: '/app-settings' }
-  ],
+  '/app-settings': [{ label: 'Paramètres app', path: '/app-settings' }],
 
-  '/profile': [
-    { label: 'Profil', path: '/profile' }
-  ],
+  '/profile': [{ label: 'Profil', path: '/profile' }],
 
-  '/messages': [
-    { label: 'Messages', path: '/messages' }
-  ],
+  '/messages': [{ label: 'Messages', path: '/messages' }],
 
-  '/notifications': [
-    { label: 'Notifications', path: '/notifications' }
-  ],
+  '/notifications': [{ label: 'Notifications', path: '/notifications' }],
 
-  '/settings': [
-    { label: 'Paramètres', path: '/settings' }
-  ],
+  '/settings': [{ label: 'Paramètres', path: '/settings' }],
 
-  '/help': [
-    { label: 'Aide', path: '/help' }
+  '/help': [{ label: 'Aide', path: '/help' }],
+
+  // ─── Documentation ───
+  '/docs': [{ label: 'Documentation', path: '/docs' }],
+  '/docs/features': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Features' },
+  ],
+  '/docs/features/:ref': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Features', path: '/docs/features' },
+    { label: 'Détails feature' },
+  ],
+  '/docs/releases': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Releases' },
+  ],
+  '/docs/releases/:ref': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Releases', path: '/docs/releases' },
+    { label: 'Détails release' },
+  ],
+  '/docs/issues': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Issues' },
+  ],
+  '/docs/issues/:ref': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Issues', path: '/docs/issues' },
+    { label: 'Détails issue' },
+  ],
+  '/docs/pages': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Pages' },
+  ],
+  '/docs/pages/:ref': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Pages', path: '/docs/pages' },
+    { label: 'Détails page' },
+  ],
+  '/docs/adrs': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'ADRs' },
+  ],
+  '/docs/adrs/:ref': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'ADRs', path: '/docs/adrs' },
+    { label: 'Détails ADR' },
+  ],
+  '/docs/runbooks': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Runbooks' },
+  ],
+  '/docs/glossary': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Glossaire' },
+  ],
+  '/docs/activity': [
+    { label: 'Documentation', path: '/docs' },
+    { label: 'Activité' },
   ],
 }
 

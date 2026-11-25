@@ -76,12 +76,18 @@ export const usePageSearch = (query, limit = 20, options = {}) => {
 /* ─── Mutations ─── */
 export const usePageMutations = () => {
   const qc = useQueryClient()
+
+  /*
+   * IMPORTANT : usePage(ref) met en cache sous detail(ref) où `ref` est le slug
+   * (paramètre d'URL), alors que les mutations connaissent l'UUID (id_page).
+   * On invalide donc par PRÉFIXE (pages.all()) : liste, détail (slug ou UUID),
+   * versions et recherche sont tous rafraîchis.
+   * Prérequis : dans keys.js, list/detail/versions/search commencent par all().
+   */
   const invalidateList = () => {
     qc.invalidateQueries({ queryKey: docsKeys.pages.all() })
     qc.invalidateQueries({ queryKey: docsKeys.dashboard() })
   }
-  const invalidateDetail = (ref) =>
-    qc.invalidateQueries({ queryKey: docsKeys.pages.detail(ref) })
 
   const create = useDocsMutation({
     mutationFn: (p) => adminRpc('docs_page_create', {
@@ -95,11 +101,8 @@ export const usePageMutations = () => {
       p_visibility: p.visibility || 'INTERNAL',
       p_tags:       p.tags || [],
     }),
-    onSuccess: (data) => {
+    onSuccess: () => {
       invalidateList()
-      qc.setQueryData(docsKeys.pages.detail(data.page.id_page), {
-        page: data.page, backlinks: [], outlinks: [],
-      })
       toast.success('Page créée')
     },
   })
@@ -111,26 +114,22 @@ export const usePageMutations = () => {
       }),
     onSuccess: (data) => {
       invalidateList()
-      invalidateDetail(data.page.id_page)
-      qc.invalidateQueries({ queryKey: docsKeys.pages.versions(data.page.id_page) })
       toast.success(`Page mise à jour (v${data.versionNumber})`)
     },
   })
 
   const publish = useDocsMutation({
     mutationFn: (id) => adminRpc('docs_page_publish', { p_page_id: id }),
-    onSuccess: (data) => {
+    onSuccess: () => {
       invalidateList()
-      invalidateDetail(data.page.id_page)
       toast.success('Page publiée')
     },
   })
 
   const archive = useDocsMutation({
     mutationFn: (id) => adminRpc('docs_page_archive', { p_page_id: id }),
-    onSuccess: (data) => {
+    onSuccess: () => {
       invalidateList()
-      invalidateDetail(data.page.id_page)
       toast.success('Page archivée')
     },
   })
@@ -144,9 +143,7 @@ export const usePageMutations = () => {
   const restoreVersion = useDocsMutation({
     mutationFn: ({ pageId, versionId }) =>
       adminRpc('docs_page_restore_version', { p_page_id: pageId, p_version_id: versionId }),
-    onSuccess: (data) => {
-      invalidateDetail(data.page.id_page)
-      qc.invalidateQueries({ queryKey: docsKeys.pages.versions(data.page.id_page) })
+    onSuccess: () => {
       invalidateList()
       toast.success('Version restaurée')
     },

@@ -1,0 +1,82 @@
+.section { display: flex; flex-direction: column; gap: 14px; }
+
+.sectionLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.required { color: var(--danger); }
+.optional {
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin-left: auto;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  resize: vertical;
+  min-height: 80px;
+}
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.textarea:disabled {
+  background: var(--bg-muted);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+.mono { font-family: var(--font-mono); font-size: 12px; }
+
+.textareaError { border-color: var(--danger); }
+.fieldError { font-size: var(--fs-xs); color: var(--danger); }
+
+.transitionSection {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.transitionBanner {
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.transitionCurrent strong {
+  margin-left: 6px;
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
+@media (max-width: 640px) {
+  .row { grid-template-columns: 1fr; }
+}
