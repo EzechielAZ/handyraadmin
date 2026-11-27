@@ -1,0 +1,8 @@
+.thread { display: flex; flex-direction: column; gap: 10px; }
+.msg { padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-subtle); font-size: var(--fs-sm); }
+.msgAdmin { background: var(--accent-subtle); border-color: var(--accent-border); }
+.msgHead { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--text-3); margin-bottom: 4px; }
+.msgBody { white-space: pre-wrap; color: var(--text); line-height: var(--lh-normal); }
+.attach { display: flex; flex-wrap: wrap; gap: 8px; }
+.attachItem { font-size: var(--fs-xs); padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); display: inline-flex; gap: 6px; align-items: center; color: var(--accent-text); }
+.decisions { display: flex; flex-direction: column; gap: 8px; }

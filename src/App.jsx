@@ -53,6 +53,12 @@ const AdrDetailPage      = lazy(() => import('./pages/Docs/Adrs/AdrDetail'))
 const RunbooksPage       = lazy(() => import('./pages/Docs/Runbooks'))
 const GlossaryPage       = lazy(() => import('./pages/Docs/Glossary'))
 const ActivityPage       = lazy(() => import('./pages/Docs/Activity'))
+const TestCampaignsPage  = lazy(() => import('./pages/Tests/Campaigns'))
+const TestCampaignDetail = lazy(() => import('./pages/Tests/Campaigns/CampaignDetail'))
+const TestScenariosPage  = lazy(() => import('./pages/Tests/Scenarios'))
+const TestScenarioDetail = lazy(() => import('./pages/Tests/Scenarios/ScenarioDetail'))
+const TestFindingsPage   = lazy(() => import('./pages/Tests/Findings'))
+const TestFindingDetail  = lazy(() => import('./pages/Tests/Findings/FindingDetail'))
 
 // Autorise la route si l'utilisateur a au moins une des permissions demandées
 const RequirePermission = ({ anyOf, children }) => {
@@ -203,6 +209,38 @@ function App() {
                 <Route path="/docs/activity" element={
                   <RequirePermission anyOf={['view_docs', 'manage_docs']}>
                     <ActivityPage />
+                  </RequirePermission>
+                } />
+
+                {/* ─── Module Tests de validation ─── */}
+                <Route path="/tests" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestCampaignsPage />
+                  </RequirePermission>
+                } />
+                <Route path="/tests/campaigns/:ref" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestCampaignDetail />
+                  </RequirePermission>
+                } />
+                <Route path="/tests/scenarios" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestScenariosPage />
+                  </RequirePermission>
+                } />
+                <Route path="/tests/scenarios/:ref" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestScenarioDetail />
+                  </RequirePermission>
+                } />
+                <Route path="/tests/findings" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestFindingsPage />
+                  </RequirePermission>
+                } />
+                <Route path="/tests/findings/:ref" element={
+                  <RequirePermission anyOf={['view_tests', 'manage_tests']}>
+                    <TestFindingDetail />
                   </RequirePermission>
                 } />
 

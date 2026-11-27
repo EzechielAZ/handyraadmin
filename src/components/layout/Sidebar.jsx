@@ -177,6 +177,7 @@ const Sidebar = () => {
                         <NavLink
                           key={child.id}
                           to={child.path}
+                          end={child.exact}
                           className={({ isActive }) =>
                             [styles.subItem, isActive && styles.subActive]
                               .filter(Boolean).join(' ')

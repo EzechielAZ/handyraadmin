@@ -1,0 +1,15 @@
+.editor { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; width: 100%; }
+.editorList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.editorItem { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; padding: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--bg-subtle); }
+.editorNum { width: 24px; height: 24px; border-radius: var(--radius-full); background: var(--accent-subtle); color: var(--accent-text);
+  font-size: var(--fs-xs); font-weight: var(--fw-semibold); display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.editorFields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.editorTools { display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 560px) { .editorItem { grid-template-columns: 24px 1fr; } .editorTools { flex-direction: row; grid-column: 2; } }
+
+.dropzone { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 12px; background: var(--bg-subtle); }
+.result { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
+.resultErr { color: var(--danger); font-size: var(--fs-xs); }
+.codeArea { font-family: var(--font-mono); font-size: var(--fs-xs); min-height: 180px; }
+.actionsRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

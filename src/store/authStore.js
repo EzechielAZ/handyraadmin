@@ -37,6 +37,9 @@ const getPermissionsForRole = (role) => {
       'manage_adrs',
       'manage_runbooks',
       'manage_glossary',
+      // Tests de validation
+      'view_tests',
+      'manage_tests',
     ],
     ADMIN: [
       'view_dashboard',
@@ -60,6 +63,9 @@ const getPermissionsForRole = (role) => {
       'manage_adrs',
       'manage_runbooks',
       'manage_glossary',
+      // Tests de validation
+      'view_tests',
+      'manage_tests',
     ],
     MODERATOR: [
       'view_dashboard',
@@ -72,6 +78,9 @@ const getPermissionsForRole = (role) => {
       'manage_features',
       'manage_pages',
       'manage_issues',
+      // Tests de validation — lecture + écriture
+      'view_tests',
+      'manage_tests',
     ],
     FINANCE: [
       'view_dashboard',
@@ -82,6 +91,8 @@ const getPermissionsForRole = (role) => {
       'export_data',
       // Documentation — lecture seule
       'view_docs',
+      // Tests de validation — lecture seule
+      'view_tests',
     ],
     OPERATIONS: [
       'view_dashboard',
@@ -94,6 +105,9 @@ const getPermissionsForRole = (role) => {
       'view_docs',
       'manage_features',
       'manage_issues',
+      // Tests de validation — lecture + écriture
+      'view_tests',
+      'manage_tests',
     ],
   }
 

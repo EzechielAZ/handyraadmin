@@ -21,6 +21,7 @@
   LogOut,
   Layers,
   BookOpen,
+  FlaskConical,
 } from 'lucide-react'
 
 /*
@@ -149,6 +150,18 @@ export const mainNavigation = [
       { id: 'docs-activity', label: 'Activité',   path: '/docs/activity' },
     ],
   },
+  {
+    id: 'tests',
+    label: 'Tests de validation',
+    icon: FlaskConical,
+    path: '/tests',
+    permissions: ['view_tests', 'manage_tests'],
+    children: [
+      { id: 'tests-campaigns', label: 'Campagnes',  path: '/tests', exact: true },
+      { id: 'tests-scenarios', label: 'Scénarios',  path: '/tests/scenarios' },
+      { id: 'tests-findings',  label: 'Retours',    path: '/tests/findings' },
+    ],
+  },
 ]
 
 // ─── Navigation secondaire ───
@@ -249,16 +262,16 @@ export const roleBasedNavigation = {
   SUPER_ADMIN: [...mainNavigation, ...secondaryNavigation],
   ADMIN: byIds([
     'dashboard', 'artisans', 'missions', 'users', 'payments', 'hpo', 'hardware',
-    'reports', 'subscriptions', 'categories', 'docs',
+    'reports', 'subscriptions', 'categories', 'docs', 'tests',
     'logistics', 'badges', 'calendar',
   ]),
   MODERATOR: byIds([
-    'dashboard', 'artisans', 'missions', 'users', 'reports', 'badges', 'calendar', 'docs',
+    'dashboard', 'artisans', 'missions', 'users', 'reports', 'badges', 'calendar', 'docs', 'tests',
   ]),
-  FINANCE: byIds(['dashboard', 'payments', 'subscriptions', 'reports', 'docs']),
+  FINANCE: byIds(['dashboard', 'payments', 'subscriptions', 'reports', 'docs', 'tests']),
   OPERATIONS: byIds([
     'dashboard', 'artisans', 'missions', 'hpo', 'hardware', 'reports',
-    'docs', 'logistics', 'badges', 'calendar',
+    'docs', 'tests', 'logistics', 'badges', 'calendar',
   ]),
 }
 
@@ -378,6 +391,32 @@ export const breadcrumbs = {
   '/docs/activity': [
     { label: 'Documentation', path: '/docs' },
     { label: 'Activité' },
+  ],
+
+  // ─── Tests de validation ───
+  '/tests': [{ label: 'Tests de validation', path: '/tests' }, { label: 'Campagnes' }],
+  '/tests/campaigns/:ref': [
+    { label: 'Tests de validation', path: '/tests' },
+    { label: 'Campagnes', path: '/tests' },
+    { label: 'Détails campagne' },
+  ],
+  '/tests/scenarios': [
+    { label: 'Tests de validation', path: '/tests' },
+    { label: 'Scénarios' },
+  ],
+  '/tests/scenarios/:ref': [
+    { label: 'Tests de validation', path: '/tests' },
+    { label: 'Scénarios', path: '/tests/scenarios' },
+    { label: 'Détails scénario' },
+  ],
+  '/tests/findings': [
+    { label: 'Tests de validation', path: '/tests' },
+    { label: 'Retours' },
+  ],
+  '/tests/findings/:ref': [
+    { label: 'Tests de validation', path: '/tests' },
+    { label: 'Retours', path: '/tests/findings' },
+    { label: 'Détails retour' },
   ],
 }
 
