@@ -19,6 +19,18 @@ const Ring = ({ pct }) => (
 )
 const Pill = ({ v }) => <span className={`${s.pill} ${s[v] || ''}`}>{ST[v] || v}</span>
 
+const Sk = ({ w = '100%', h = 14, r }) => <span className={s.sk} style={{ width: w, height: h, borderRadius: r }} />
+const SkRow = () => (
+  <div className={s.card}><div className={s.row}><span className={s.sk} style={{ width: 40, height: 40, borderRadius: 12, flex: '0 0 40px' }} />
+    <div className={s.grow}><Sk w="70%" h={16} /><div style={{ height: 8 }} /><Sk w="45%" h={12} /></div></div></div>
+)
+const SkList = ({ hero }) => (<>{hero && <span className={`${s.sk} ${s.heroSk}`} />}<SkRow /><SkRow /><SkRow /></>)
+const SkRun = () => (<>
+  <div className={s.card}><Sk w="55%" h={16} /><div style={{ height: 10 }} /><Sk h={12} /><div style={{ height: 6 }} /><Sk w="80%" h={12} /></div>
+  {[1, 2].map((i) => <div key={i} className={s.step}><span className={s.sk} style={{ width: 28, height: 28, borderRadius: 14, flex: '0 0 28px' }} />
+    <div className={s.grow}><Sk w="85%" h={16} /><div style={{ height: 12 }} /><Sk h={44} r={10} /><div style={{ height: 12 }} /><Sk h={56} r={14} /></div></div>)}
+</>)
+const haptic = () => { try { navigator.vibrate?.(8) } catch { /* ignore */ } }
 const Err = ({ e }) => (e ? <p className={s.err}>{e.message}</p> : null)
 
 function Shell({ token, children, title, eyebrow, back }) {
@@ -46,8 +58,8 @@ const useHome = (token) => useQuery({
   queryKey: ['portal', token], queryFn: () => portal.open(token, detectDevice()), retry: false, refetchOnWindowFocus: true,
 })
 
-function Gate({ q, children }) {
-  if (q.isLoading) return <div className={s.root}><p className={s.empty}>Chargement…</p></div>
+function Gate({ token, q, skeleton, children }) {
+  if (q.isLoading) return <Shell token={token} eyebrow={<Sk w={120} h={12} />} title={<Sk w={220} h={28} />}>{skeleton}</Shell>
   if (q.isError) return (
     <div className={s.root}><div className={s.wrap}><div className={s.empty}><Link2Off size={40} />
       <h2>Lien invalide</h2><p>Ce lien n'est plus valide. Demandez-en un nouveau à l'équipe Handyra.</p></div></div></div>
@@ -92,7 +104,7 @@ function RunCard({ r, onClick }) {
 function Home({ token }) {
   const nav = useNavigate(); const q = useHome(token)
   return (
-    <Gate q={q}>{(d) => {
+    <Gate token={token} q={q} skeleton={<SkList hero />}>{(d) => {
       const total = d.runs.length; const fin = d.runs.filter((r) => done(r.status)).length
       const pct = total ? Math.round((fin / total) * 100) : 0
       const next = d.runs.find((r) => !done(r.status)); const active = d.campaign.status === 'ACTIVE'
@@ -134,10 +146,11 @@ function Run({ token }) {
     onSuccess: (r, v) => { qc.setQueryData(['portal', token, 'run', runId], r); qc.invalidateQueries({ queryKey: ['portal', token], exact: true }); if (done(v.status)) nav(`/join/${token}`) },
   })
   if (q.isError) return <Shell token={token} title="Test introuvable" back={`/join/${token}`}><Err e={q.error} /></Shell>
-  if (!q.data || !steps) return <div className={s.root}><p className={s.empty}>Chargement…</p></div>
+  if (!q.data || !steps) return <Shell token={token} eyebrow={<Sk w={110} h={12} />} title={<Sk w={240} h={28} />} back={`/join/${token}`}><SkRun /></Shell>
   const { scenario: sc, canEdit } = q.data
   const setStep = (pos, patch) => {
     const next = steps.map((x) => (x.position === pos ? { ...x, ...patch } : x)); setSteps(next)
+    if (canEdit && patch.status) haptic()
     if (canEdit && patch.status) rec.mutate({ status: 'IN_PROGRESS', st: next })
   }
   const pending = steps.filter((x) => x.status === 'PENDING').length
@@ -220,7 +233,7 @@ function Report({ token }) {
 function Findings({ token }) {
   const nav = useNavigate(); const q = useHome(token)
   return (
-    <Gate q={q}>{(d) => (
+    <Gate token={token} q={q} skeleton={<SkList />}>{(d) => (
       <Shell token={token} eyebrow="Historique" title="Mes retours">
         {d.findings.length === 0 && <div className={s.empty}><MessageSquare size={40} /><h2>Rien signalé</h2><p>Appuyez sur + dès que vous voyez quelque chose d'anormal.</p></div>}
         {d.findings.map((f) => (
@@ -241,7 +254,7 @@ function Finding({ token }) {
     onSuccess: (r) => { setTxt(''); qc.setQueryData(['portal', token, 'f', code], r); qc.invalidateQueries({ queryKey: ['portal', token], exact: true }) },
   })
   if (q.isError) return <Shell token={token} title="Introuvable" back={`/join/${token}/retours`}><Err e={q.error} /></Shell>
-  const f = q.data; if (!f) return <div className={s.root}><p className={s.empty}>Chargement…</p></div>
+  const f = q.data; if (!f) return <Shell token={token} eyebrow={<Sk w={90} h={12} />} title={<Sk w={220} h={28} />} back={`/join/${token}/retours`}><SkRow /><SkRow /></Shell>
   return (
     <Shell token={token} eyebrow={f.code} title={f.title} back={`/join/${token}/retours`}>
       <div className={s.card}><Pill v={f.status} /><div className={s.md} style={{ marginTop: 10 }}><Markdown>{f.description}</Markdown></div></div>
@@ -258,6 +271,12 @@ function Finding({ token }) {
 
 export default function Portal() {
   const { token } = useParams()
+  useEffect(() => {
+    const m = document.querySelector('meta[name=theme-color]') || Object.assign(document.createElement('meta'), { name: 'theme-color' })
+    const old = m.content; m.content = '#1e3a5f'; document.head.appendChild(m)
+    const t = document.title; document.title = 'Handyra · Tests'
+    return () => { m.content = old; document.title = t }
+  }, [])
   return (
     <Routes>
       <Route index element={<Home token={token} />} />
