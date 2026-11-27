@@ -58,6 +58,7 @@ const TestCampaignDetail = lazy(() => import('./pages/Tests/Campaigns/CampaignDe
 const TestScenariosPage  = lazy(() => import('./pages/Tests/Scenarios'))
 const TestScenarioDetail = lazy(() => import('./pages/Tests/Scenarios/ScenarioDetail'))
 const TestFindingsPage   = lazy(() => import('./pages/Tests/Findings'))
+const Portal = lazy(() => import('./pages/Portal'))
 const TestFindingDetail  = lazy(() => import('./pages/Tests/Findings/FindingDetail'))
 
 // Autorise la route si l'utilisateur a au moins une des permissions demandées
@@ -80,6 +81,17 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Portail testeur : public, accessible par lien d'invitation (sans compte)
+  if (window.location.pathname.startsWith('/join/')) {
+    return (
+      <BrowserRouter>
+        <Suspense fallback={null}>
+          <Routes><Route path="/join/:token/*" element={<Portal />} /></Routes>
+        </Suspense>
+      </BrowserRouter>
+    )
+  }
 
   if (!isAuthenticated) {
     return (
