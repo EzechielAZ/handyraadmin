@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag } from 'lucide-react'
@@ -40,14 +40,14 @@ function Shell({ token, children, title, eyebrow, back, dock }) {
   const tab = pathname.includes('/retours') ? 'r' : pathname.includes('/signaler') ? 's' : 'h'
   return (
     <div className={`${s.root} ${dock ? s.hasDock : ''}`} onScroll={(e) => { const v = e.currentTarget.scrollTop > 48; if (v !== scrolled) setScrolled(v) }}>
-      <header className={`${s.hdr} ${scrolled ? s.hdrOn : ''}`}>
+      <header className={`${s.hdr} ${back ? '' : s.hdrBare} ${scrolled ? s.hdrOn : ''}`}>
         <div className={s.hdrIn}>
           {back ? <button className={s.back} onClick={() => nav(back)} aria-label="Retour"><ChevronLeft size={22} />Retour</button> : <span className={s.backSp} />}
           <span className={s.hdrTitle}>{typeof title === 'string' ? title : ''}</span>
           <span className={s.backSp} />
         </div>
       </header>
-      <div className={s.top}>
+      <div className={`${s.top} ${back ? '' : s.topBare}`}>
         <div className={s.eyebrow}>{eyebrow}</div>
         <h1 className={s.h1}>{title}</h1>
       </div>
@@ -63,11 +63,19 @@ function Shell({ token, children, title, eyebrow, back, dock }) {
   )
 }
 
-function Toast({ msg }) { return msg ? <div className={s.toast} role="alert"><AlertTriangle size={18} />{msg}</div> : null }
+function Toast({ t, onClose }) {
+  if (!t) return null
+  return (
+    <div className={`${s.toast} ${t.ok ? s.toastOk : ''}`} role="status">
+      {t.ok ? <Check size={18} /> : <AlertTriangle size={18} />}<span className={s.grow}>{t.msg}</span>
+      {t.action && <button className={s.toastBtn} onClick={() => { t.action.fn(); onClose() }}>{t.action.label}</button>}
+    </div>
+  )
+}
 const useToast = () => {
-  const [msg, setMsg] = useState('')
-  const show = (e) => { setMsg(e?.message || String(e)); setTimeout(() => setMsg(''), 3500) }
-  return [msg, show]
+  const [t, setT] = useState(null)
+  const show = (e, opts = {}) => { setT({ msg: e?.message || String(e), ...opts }); clearTimeout(window.__tt); window.__tt = setTimeout(() => setT(null), opts.action ? 6000 : 3500) }
+  return [t, show, () => setT(null)]
 }
 
 const useHome = (token) => useQuery({
@@ -155,8 +163,8 @@ function Run({ token }) {
   const { runId } = useParams(); const nav = useNavigate(); const qc = useQueryClient()
   const q = useQuery({ queryKey: ['portal', token, 'run', runId], queryFn: () => portal.runGet(token, runId), retry: false })
   const [steps, setSteps] = useState(null); const [note, setNote] = useState('')
-  const [busy, setBusy] = useState({}); const [finishing, setFinishing] = useState(false)
-  const [toast, showToast] = useToast()
+  const [busy, setBusy] = useState({}); const [finishing, setFinishing] = useState(false); const [bulk, setBulk] = useState(false)
+  const [toast, showToast, closeToast] = useToast()
    
   useEffect(() => { if (q.data) { setSteps(q.data.steps); setNote(q.data.run.note || '') } }, [q.data])
   if (q.isError) return <Shell token={token} title="Test introuvable" back={`/join/${token}`}><Err e={q.error} /></Shell>
@@ -174,6 +182,24 @@ function Run({ token }) {
     } catch (e) {
       patchStep(pos, { status: prev.status, comment: prev.comment }); showToast(e)
     } finally { setBusy((b) => ({ ...b, [pos]: false })) }
+  }
+  const validateAll = async () => {
+    const targets = steps.filter((x) => x.status === 'PENDING'); if (!targets.length) return
+    haptic(); const prevList = targets.map((x) => ({ position: x.position, status: 'PENDING', comment: x.comment }))
+    const ids = new Set(targets.map((x) => x.position))
+    setSteps((cur) => cur.map((x) => (ids.has(x.position) ? { ...x, status: 'PASSED' } : x))); setBulk(true)
+    try {
+      await portal.runRecord(token, runId, 'IN_PROGRESS', null, targets.map((x) => ({ position: x.position, status: 'PASSED', comment: x.comment })))
+      qc.invalidateQueries({ queryKey: ['portal', token], exact: true })
+      showToast(`${targets.length} étape${targets.length > 1 ? 's' : ''} validée${targets.length > 1 ? 's' : ''}`, {
+        ok: true, action: { label: 'Annuler', fn: async () => {
+          setSteps((cur) => cur.map((x) => (ids.has(x.position) ? { ...x, status: 'PENDING' } : x)))
+          try { await portal.runRecord(token, runId, 'IN_PROGRESS', null, prevList) } catch (e) { showToast(e); qc.invalidateQueries({ queryKey: ['portal', token, 'run', runId] }) }
+        } },
+      })
+    } catch (e) {
+      setSteps((cur) => cur.map((x) => (ids.has(x.position) ? { ...x, status: 'PENDING' } : x))); showToast(e)
+    } finally { setBulk(false) }
   }
   const finish = async (status) => {
     setFinishing(true)
@@ -202,11 +228,18 @@ function Run({ token }) {
           {sc.testDataMd && <><div className={s.label} style={{ marginTop: 14 }}>Données à utiliser</div><div className={s.md}><Markdown>{sc.testDataMd}</Markdown></div></>}
         </div>
       )}
-      <div className={s.section}>Étapes</div>
+      <div className={s.sectionRow}>
+        <div className={s.sectionT}>Étapes</div>
+        {canEdit && pending.length > 1 && (
+          <button className={s.linkBtn} disabled={bulk} onClick={validateAll}>
+            {bulk ? <Loader size={16} className={s.spin} /> : <Check size={16} />}Tout valider ({pending.length})
+          </button>
+        )}
+      </div>
       {steps.map((st) => {
         const b = !!busy[st.position]
         const btn = (v, cls, icon, label) => (
-          <button key={v} className={st.status === v ? s[cls] : ''} disabled={b} aria-pressed={st.status === v} onClick={() => st.status !== v && saveStep(st.position, { status: v })}>
+          <button key={v} className={st.status === v ? s[cls] : ''} disabled={b || bulk} aria-pressed={st.status === v} onClick={() => st.status !== v && saveStep(st.position, { status: v })}>
             {b && st.status === v ? <Loader size={20} className={s.spin} /> : icon}{label}
           </button>
         )
@@ -237,29 +270,87 @@ function Run({ token }) {
       )}
       {q.data.findings.length > 0 && <p className={s.meta}>Signalements liés : {q.data.findings.map((f) => f.code).join(', ')}</p>}
       {canEdit && <label className={s.field} style={{ marginTop: 16 }}><span>Remarque générale (facultatif)</span><textarea className={s.input} value={note} onChange={(e) => setNote(e.target.value)} /></label>}
-      <Toast msg={toast} />
+      <Toast t={toast} onClose={closeToast} />
     </Shell>
   )
 }
 
+const SEV = [
+  ['MINOR', 'Mineur', 'Petit défaut, je peux continuer', 'sevLow'],
+  ['MAJOR', 'Gênant', 'Ça me gêne mais je peux contourner', 'sevMid'],
+  ['CRITICAL', 'Bloquant', 'Je ne peux plus avancer', 'sevHigh'],
+]
+const TYPE_HELP = { BUG: 'Quelque chose ne marche pas', UX: 'Confus ou peu agréable', SUGGESTION: 'Une idée pour améliorer', QUESTION: 'Je ne comprends pas' }
+const DRAFT0 = { type: 'BUG', severity: 'MAJOR', title: '', description: '', reproductionSteps: '' }
+const grow = (e) => { e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 320)}px` }
+
 function Report({ token }) {
   const [sp] = useSearchParams(); const nav = useNavigate(); const qc = useQueryClient()
-  const [f, setF] = useState({ type: 'BUG', severity: 'MAJOR', title: '', description: '', reproductionSteps: '' })
+  const home = useHome(token); const runId = sp.get('run')
+  const run = home.data?.runs.find((r) => r.id === runId); const tester = home.data?.tester
+  const key = `handyra-draft-${token}`
+  const [f, setF] = useState(() => { try { return { ...DRAFT0, ...JSON.parse(localStorage.getItem(key) || '{}') } } catch { return DRAFT0 } })
+  const [restored] = useState(() => !!(f.title || f.description))
+  const [sent, setSent] = useState(null); const [showRepro, setShowRepro] = useState(!!f.reproductionSteps)
+  const titleRef = useRef(null); const descRef = useRef(null)
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(f)) } catch { /* ignore */ } }, [f, key])
   const m = useMutation({
-    mutationFn: () => portal.findingCreate(token, { ...f, runId: sp.get('run') || null, severity: f.type === 'BUG' ? f.severity : null }),
-    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['portal', token] }); nav(`/join/${token}/retours/${r.code}`, { replace: true }) },
+    mutationFn: () => portal.findingCreate(token, { ...f, runId: runId || null, severity: f.type === 'BUG' ? f.severity : null }),
+    onSuccess: (r) => { try { localStorage.removeItem(key) } catch { /* ignore */ } qc.invalidateQueries({ queryKey: ['portal', token] }); setSent(r.code) },
   })
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const hint = !f.title.trim() ? 'Ajoutez un titre' : !f.description.trim() ? 'Décrivez ce qui s\'est passé' : null
+  const submit = () => { if (hint) { (!f.title.trim() ? titleRef : descRef).current?.focus(); return } haptic(); m.mutate() }
+
+  if (sent) {
+    return (
+      <Shell token={token} eyebrow={sent} title="Merci, c'est envoyé">
+        <div className={s.success}>
+          <div className={s.successIco}><Check size={44} strokeWidth={3} /></div>
+          <p>L'équipe Handyra a bien reçu votre retour. Vous serez prévenu ici si nous avons besoin de précisions.</p>
+          <button className={s.btn} onClick={() => nav(`/join/${token}/retours/${sent}`, { replace: true })}>Voir mon signalement</button>
+          <button className={`${s.btn} ${s.ghost}`} style={{ marginTop: 8 }} onClick={() => nav(runId ? `/join/${token}/test/${runId}` : `/join/${token}`, { replace: true })}>{runId ? 'Retourner au test' : 'Retour à mes tests'}</button>
+        </div>
+      </Shell>
+    )
+  }
+  const label = { BUG: 'Que s\'est-il passé ?', UX: 'Qu\'est-ce qui est confus ?', SUGGESTION: 'Votre idée', QUESTION: 'Votre question' }[f.type]
   return (
-    <Shell token={token} eyebrow="Nouveau signalement" title="Qu'avez-vous remarqué ?" back={`/join/${token}`}
-      dock={<><button className={s.btn} disabled={!f.title.trim() || !f.description.trim() || m.isPending} onClick={() => m.mutate()}>{m.isPending ? <Loader size={18} className={s.spin} /> : <Send size={18} />}Envoyer le signalement</button>{m.error && <Err e={m.error} />}</>}>
-      {/* eslint-disable-next-line no-unused-vars */}
-      <div className={s.seg}>{TYPES.map(([k, l, I]) => <button key={k} className={f.type === k ? s.on : ''} onClick={() => setF({ ...f, type: k })}><I size={20} />{l}</button>)}</div>
-      {f.type === 'BUG' && (<><div className={s.field}><span>Gravité</span></div>
-        <div className={s.seg} style={{ marginTop: -8 }}>{SEVS.map(([k, l]) => <button key={k} className={f.severity === k ? s.on : ''} style={{ minHeight: 46 }} onClick={() => setF({ ...f, severity: k })}>{l}</button>)}</div></>)}
-      <label className={s.field}><span>Titre court</span><input className={s.input} value={f.title} maxLength={200} onChange={set('title')} placeholder="ex. L'app se ferme à la publication" /></label>
-      <label className={s.field}><span>Description</span><textarea className={s.input} value={f.description} onChange={set('description')} placeholder="Ce qui s'est passé, sur quel écran…" /></label>
-      {f.type === 'BUG' && <label className={s.field}><span>Comment le reproduire ? (facultatif)</span><textarea className={s.input} value={f.reproductionSteps} onChange={set('reproductionSteps')} placeholder={'1. …\n2. …\n3. …'} /></label>}
+    <Shell token={token} eyebrow="Nouveau signalement" title="Qu'avez-vous remarqué ?" back={runId ? `/join/${token}/test/${runId}` : `/join/${token}`}
+      dock={<>
+        <button className={`${s.btn} ${hint ? s.ghost : ''}`} disabled={m.isPending} onClick={submit}>
+          {m.isPending ? <Loader size={18} className={s.spin} /> : hint ? <ChevronRight size={18} style={{ transform: 'rotate(90deg)' }} /> : <Send size={18} />}
+          {m.isPending ? 'Envoi…' : hint || 'Envoyer le signalement'}
+        </button>
+        {m.error && <p className={s.err} style={{ textAlign: 'center' }}>{m.error.message}</p>}
+      </>}>
+      {restored && <div className={s.banner} style={{ background: 'var(--navy-s)', color: 'var(--navy)' }}><Check size={18} /><span className={s.grow}>Brouillon restauré</span>
+        <button className={s.toastBtn} style={{ color: 'var(--navy)' }} onClick={() => setF(DRAFT0)}>Effacer</button></div>}
+      {run && <div className={s.ctx}><ClipboardList size={18} /><div className={s.grow}><div className={s.label} style={{ margin: 0 }}>Lié au test</div><div className={s.title}>{run.title}</div></div></div>}
+      <div className={s.label}>Type</div>
+      <div className={s.typeGrid}>{TYPES.map(([k, l, Ico]) => (
+        <button key={k} className={`${s.typeCard} ${f.type === k ? s.typeOn : ''}`} aria-pressed={f.type === k} onClick={() => setF({ ...f, type: k })}>
+          {Ico && <Ico size={22} />}<b>{l}</b><small>{TYPE_HELP[k]}</small>
+        </button>))}</div>
+      {f.type === 'BUG' && (<>
+        <div className={s.label}>Gravité</div>
+        <div className={s.sevList} role="radiogroup">{SEV.map(([k, l, d, c]) => (
+          <button key={k} role="radio" aria-checked={f.severity === k} className={`${s.sev} ${f.severity === k ? s.sevOn : ''}`} onClick={() => setF({ ...f, severity: k })}>
+            <span className={`${s.dot} ${s[c]}`} /><span className={s.grow}><b>{l}</b><small>{d}</small></span>
+            <span className={s.radio}>{f.severity === k && <Check size={14} strokeWidth={3} />}</span>
+          </button>))}</div>
+      </>)}
+      <label className={s.field} style={{ marginTop: 20 }}><span className={s.fieldRow}>Titre court<em>{f.title.length}/120</em></span>
+        <input ref={titleRef} className={s.input} value={f.title} maxLength={120} onChange={set('title')} enterKeyHint="next" autoCapitalize="sentences"
+          placeholder={f.type === 'BUG' ? 'ex. L\'app se ferme à la publication' : f.type === 'SUGGESTION' ? 'ex. Ajouter un mode hors ligne' : 'Résumez en une phrase'} /></label>
+      <label className={s.field}><span className={s.fieldRow}>{label}</span>
+        <textarea ref={descRef} className={s.input} value={f.description} onChange={(e) => { set('description')(e); grow(e) }} onFocus={grow}
+          placeholder="Sur quel écran ? Qu'attendiez-vous ? Que s'est-il passé ?" /></label>
+      {f.type === 'BUG' && (showRepro
+        ? <label className={s.field}><span className={s.fieldRow}>Comment le reproduire ? <em>facultatif</em></span>
+          <textarea className={s.input} value={f.reproductionSteps} onChange={(e) => { set('reproductionSteps')(e); grow(e) }} onFocus={grow} placeholder={'1. J\'ouvre…\n2. Je touche…\n3. Le problème apparaît'} /></label>
+        : <button className={s.linkBtn} style={{ marginBottom: 12 }} onClick={() => setShowRepro(true)}><Plus size={16} />Ajouter les étapes pour reproduire</button>)}
+      {tester && <div className={s.device}>Envoyé depuis <b>{[tester.deviceModel, tester.platform === 'IOS' ? 'iOS' : tester.platform === 'ANDROID' ? 'Android' : null, tester.osVersion].filter(Boolean).join(' · ') || 'votre téléphone'}</b></div>}
     </Shell>
   )
 }
