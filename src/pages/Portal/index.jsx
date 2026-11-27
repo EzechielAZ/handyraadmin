@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag } from 'lucide-react'
 import Markdown from '../../components/docs/Markdown/Markdown'
 import { portal, detectDevice } from './api'
 import s from './Portal.module.css'
 
 const ST = { ASSIGNED: 'À faire', IN_PROGRESS: 'En cours', PASSED: 'Réussi', FAILED: 'Échec', BLOCKED: 'Bloqué', SKIPPED: 'Ignoré',
   NEW: 'Reçu', NEED_INFO: 'Précisions demandées', CONFIRMED: 'Confirmé', REJECTED: 'Non retenu' }
-const TYPES = [['BUG', '🐞 Bug'], ['UX', '🎨 Confort'], ['SUGGESTION', '💡 Idée'], ['QUESTION', '❓ Question']]
+const TYPES = [['BUG', 'Bug', Bug], ['UX', 'Confort', Palette], ['SUGGESTION', 'Idée', Lightbulb], ['QUESTION', 'Question', HelpCircle]]
 const SEVS = [['MINOR', 'Mineur'], ['MAJOR', 'Gênant'], ['CRITICAL', 'Bloquant']]
 const done = (st) => ['PASSED', 'FAILED', 'BLOCKED', 'SKIPPED'].includes(st)
+const RUN_ICON = { PASSED: Check, FAILED: X, BLOCKED: Ban, IN_PROGRESS: Loader, SKIPPED: Check }
+const Ring = ({ pct }) => (
+  <svg className={s.ring} viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="none" stroke="#ffffff33" strokeWidth="8" />
+    <circle cx="40" cy="40" r="34" fill="none" stroke="#fff" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${pct * 2.136} 999`} transform="rotate(-90 40 40)" />
+    <text x="40" y="46" textAnchor="middle" fontSize="20" fontWeight="700" fill="#fff">{pct}%</text></svg>
+)
 const Pill = ({ v }) => <span className={`${s.pill} ${s[v] || ''}`}>{ST[v] || v}</span>
 
 const Err = ({ e }) => (e ? <p className={s.err}>{e.message}</p> : null)
@@ -21,16 +28,16 @@ function Shell({ token, children, title, eyebrow, back }) {
   return (
     <div className={s.root}>
       <div className={s.top}>
-        {back && <button className={s.back} onClick={() => nav(back)}>← Retour</button>}
+        {back && <button className={s.back} onClick={() => nav(back)}><ChevronLeft size={20} />Retour</button>}
         <div className={s.eyebrow}>{eyebrow}</div>
         <h1 className={s.h1}>{title}</h1>
       </div>
       <div className={s.wrap}>{children}</div>
-      <nav className={s.nav}>
-        <button className={tab === 'h' ? s.on : ''} onClick={() => nav(base)}>📋<br />Mes tests</button>
-        <button className={s.fab} aria-label="Signaler" onClick={() => nav(`${base}/signaler`)}>＋</button>
-        <button className={tab === 'r' ? s.on : ''} onClick={() => nav(`${base}/retours`)}>💬<br />Mes retours</button>
-      </nav>
+      <nav className={s.nav}><div className={s.navIn}>
+        <button className={tab === 'h' ? s.on : ''} onClick={() => nav(base)}><ClipboardList size={22} />Mes tests</button>
+        <button className={s.fab} aria-label="Signaler un problème" onClick={() => nav(`${base}/signaler`)}><Plus size={28} /></button>
+        <button className={tab === 'r' ? s.on : ''} onClick={() => nav(`${base}/retours`)}><MessageSquare size={22} />Mes retours</button>
+      </div></nav>
     </div>
   )
 }
@@ -42,7 +49,7 @@ const useHome = (token) => useQuery({
 function Gate({ q, children }) {
   if (q.isLoading) return <div className={s.root}><p className={s.empty}>Chargement…</p></div>
   if (q.isError) return (
-    <div className={s.root}><div className={s.wrap}><div className={s.empty}>
+    <div className={s.root}><div className={s.wrap}><div className={s.empty}><Link2Off size={40} />
       <h2>Lien invalide</h2><p>Ce lien n'est plus valide. Demandez-en un nouveau à l'équipe Handyra.</p></div></div></div>
   )
   return children(q.data)
@@ -68,34 +75,48 @@ function Profile({ token, data }) {
   )
 }
 
+function RunCard({ r, onClick }) {
+  const I = RUN_ICON[r.status] || ClipboardList
+  return (
+    <div className={`${s.card} ${s.tap}`} onClick={onClick}>
+      <div className={s.row}>
+        <div className={`${s.ico} ${s[r.status] || ''}`}><I size={20} /></div>
+        <div className={s.grow}><div className={s.title}>{r.title}</div>
+          <div className={s.meta}>{r.module || r.code}{r.minutes ? ` · ~${r.minutes} min` : ''}{r.stepsTotal ? ` · ${r.stepsDone}/${r.stepsTotal} étapes` : ''}</div></div>
+        {done(r.status) || r.status === 'IN_PROGRESS' ? <Pill v={r.status} /> : <ChevronRight size={20} className={s.chev} />}
+      </div>
+    </div>
+  )
+}
+
 function Home({ token }) {
   const nav = useNavigate(); const q = useHome(token)
   return (
     <Gate q={q}>{(d) => {
       const total = d.runs.length; const fin = d.runs.filter((r) => done(r.status)).length
-      const next = d.runs.find((r) => !done(r.status))
+      const pct = total ? Math.round((fin / total) * 100) : 0
+      const next = d.runs.find((r) => !done(r.status)); const active = d.campaign.status === 'ACTIVE'
       const need = d.findings.filter((f) => f.needsReply).length
+      const todo = d.runs.filter((r) => !done(r.status)); const finished = d.runs.filter((r) => done(r.status))
+      const go = (id) => nav(`/join/${token}/test/${id}`)
       return (
-        <Shell token={token} eyebrow={d.campaign.name} title={d.tester.fullName ? `Salut ${d.tester.fullName.split(' ')[0]}` : 'Mes tests'}>
+        <Shell token={token} eyebrow={d.campaign.name} title={d.tester.fullName ? `Bonjour ${d.tester.fullName.split(' ')[0]}` : 'Mes tests'}>
           {(!d.tester.fullName || !d.tester.deviceModel) && <Profile token={token} data={d} />}
-          {d.campaign.status !== 'ACTIVE' && (
-            <div className={s.banner}>{d.campaign.status === 'DRAFT' ? 'La campagne n\'a pas encore démarré.' : d.campaign.status === 'PAUSED' ? 'La campagne est en pause.' : 'La campagne est terminée. Merci !'}</div>
-          )}
-          {need > 0 && <div className={s.banner} onClick={() => nav(`/join/${token}/retours`)}>💬 {need} signalement{need > 1 ? 's' : ''} attend{need > 1 ? 'ent' : ''} vos précisions</div>}
-          <div className={s.card}>
-            <div className={s.row}><div className={s.grow}><div className={s.title}>{fin} / {total} tests terminés</div>
-              <div className={s.meta}>{d.campaign.appBuild ? `Version ${d.campaign.appBuild}` : 'Testez l\'app comme un vrai utilisateur'}</div></div></div>
-            <div className={s.bar}><i style={{ width: total ? `${(fin / total) * 100}%` : 0 }} /></div>
-            {next && d.campaign.status === 'ACTIVE' && <button className={s.btn} style={{ marginTop: 12 }} onClick={() => nav(`/join/${token}/test/${next.id}`)}>{fin ? 'Test suivant' : 'Commencer'}</button>}
-          </div>
-          {total === 0 && <p className={s.empty}>Aucun test ne vous est encore attribué.</p>}
-          {d.runs.map((r) => (
-            <div key={r.id} className={s.card} onClick={() => nav(`/join/${token}/test/${r.id}`)}>
-              <div className={s.row}><div className={s.grow}><div className={s.title}>{r.title}</div>
-                <div className={s.meta}>{r.code}{r.module ? ` · ${r.module}` : ''}{r.minutes ? ` · ~${r.minutes} min` : ''}{r.stepsTotal ? ` · ${r.stepsDone}/${r.stepsTotal} étapes` : ''}</div></div>
-                <Pill v={r.status} /></div>
+          {!active && <div className={s.banner}><AlertTriangle size={18} />{d.campaign.status === 'DRAFT' ? 'La campagne n\'a pas encore démarré.' : d.campaign.status === 'PAUSED' ? 'La campagne est en pause.' : 'La campagne est terminée. Merci pour votre aide !'}</div>}
+          {need > 0 && <div className={`${s.banner} ${s.tap}`} onClick={() => nav(`/join/${token}/retours`)}><MessageSquare size={18} />{need} signalement{need > 1 ? 's' : ''} attend{need > 1 ? 'ent' : ''} votre réponse</div>}
+          <div className={s.hero}>
+            <div className={s.row}>
+              <div className={s.grow}><div className={s.meta}>Votre progression</div>
+                <div className={s.big}>{fin} / {total}</div><div className={s.meta}>tests terminés{d.campaign.appBuild ? ` · v${d.campaign.appBuild}` : ''}</div></div>
+              <Ring pct={pct} />
             </div>
-          ))}
+            {next && active && <button className={s.heroBtn} onClick={() => go(next.id)}><Play size={18} />{fin ? 'Continuer' : 'Commencer les tests'}</button>}
+          </div>
+          {total === 0 && <div className={s.empty}><ClipboardList size={40} /><h2>Aucun test pour le moment</h2><p>Vos tests apparaîtront ici dès leur attribution.</p></div>}
+          {todo.length > 0 && <div className={s.section}>À faire · {todo.length}</div>}
+          {todo.map((r) => <RunCard key={r.id} r={r} onClick={() => go(r.id)} />)}
+          {finished.length > 0 && <div className={s.section}>Terminés · {finished.length}</div>}
+          {finished.map((r) => <RunCard key={r.id} r={r} onClick={() => go(r.id)} />)}
         </Shell>
       )
     }}</Gate>
@@ -122,45 +143,50 @@ function Run({ token }) {
   const pending = steps.filter((x) => x.status === 'PENDING').length
   const final = steps.some((x) => x.status === 'FAILED') ? 'FAILED' : steps.some((x) => x.status === 'BLOCKED') ? 'BLOCKED' : steps.every((x) => x.status === 'SKIPPED') ? 'SKIPPED' : 'PASSED'
   return (
-    <Shell token={token} eyebrow={`${sc.code} · ${sc.priority}`} title={sc.title} back={`/join/${token}`}>
-      {!canEdit && <div className={s.banner}>La campagne n'est pas en cours : lecture seule.</div>}
-      {done(q.data.run.status) && <div className={s.banner}>Résultat enregistré : {ST[q.data.run.status]}. Vous pouvez le refaire en modifiant les étapes.</div>}
-      {sc.summary && <p className={s.meta}>{sc.summary}</p>}
+    <Shell token={token} eyebrow={`${sc.code} · ${sc.priority}${sc.minutes ? ` · ~${sc.minutes} min` : ''}`} title={sc.title} back={`/join/${token}`}>
+      {!canEdit && <div className={s.banner}><AlertTriangle size={18} />La campagne n'est pas en cours : lecture seule.</div>}
+      {done(q.data.run.status) && <div className={s.banner}><Check size={18} />Résultat enregistré : {ST[q.data.run.status]}. Vous pouvez modifier les étapes pour le refaire.</div>}
+      {sc.summary && <p className={s.meta} style={{ margin: '0 4px 14px' }}>{sc.summary}</p>}
       {(sc.preconditionsMd || sc.testDataMd) && (
         <div className={s.card}>
           {sc.preconditionsMd && <><div className={s.title}>Avant de commencer</div><div className={s.md}><Markdown>{sc.preconditionsMd}</Markdown></div></>}
-          {sc.testDataMd && <><div className={s.title} style={{ marginTop: 8 }}>Données à utiliser</div><div className={s.md}><Markdown>{sc.testDataMd}</Markdown></div></>}
+          {sc.testDataMd && <><div className={s.title} style={{ marginTop: 10 }}>Données à utiliser</div><div className={s.md}><Markdown>{sc.testDataMd}</Markdown></div></>}
         </div>
       )}
+      <div className={s.section}>Étapes</div>
       {steps.map((st) => (
         <div key={st.position} className={`${s.step} ${s[st.status] || ''}`}>
-          <div className={s.meta}>Étape {st.position}</div>
-          <div className={`${s.md} ${s.title}`}><Markdown>{st.actionMd}</Markdown></div>
-          <div className={s.exp}>Attendu : <Markdown>{st.expectedMd}</Markdown></div>
-          {canEdit && (
-            <div className={s.seg}>
-              <button className={st.status === 'PASSED' ? s.okOn : ''} onClick={() => setStep(st.position, { status: 'PASSED' })}>✓ OK</button>
-              <button className={st.status === 'FAILED' ? s.koOn : ''} onClick={() => setStep(st.position, { status: 'FAILED' })}>✗ Échec</button>
-              <button className={st.status === 'BLOCKED' ? s.on : ''} onClick={() => setStep(st.position, { status: 'BLOCKED' })}>⛔</button>
-            </div>
-          )}
-          {canEdit && ['FAILED', 'BLOCKED'].includes(st.status) && (
-            <textarea className={s.input} style={{ marginTop: 8, minHeight: 64 }} placeholder="Que s'est-il passé ?" value={st.comment || ''}
-              onChange={(e) => setSteps(steps.map((x) => (x.position === st.position ? { ...x, comment: e.target.value } : x)))}
-              onBlur={() => rec.mutate({ status: 'IN_PROGRESS' })} />
-          )}
+          <div className={s.num}>{st.status === 'PASSED' ? <Check size={16} /> : st.status === 'FAILED' ? <X size={16} /> : st.position}</div>
+          <div className={s.grow}>
+            <div className={`${s.md} ${s.title}`}><Markdown>{st.actionMd}</Markdown></div>
+            <div className={s.exp}><div className={s.eyebrow}>Résultat attendu</div><div className={s.md}><Markdown>{st.expectedMd}</Markdown></div></div>
+            {canEdit && (
+              <div className={s.seg} style={{ marginBottom: 0 }}>
+                <button className={st.status === 'PASSED' ? s.okOn : ''} onClick={() => setStep(st.position, { status: 'PASSED' })}><Check size={20} />OK</button>
+                <button className={st.status === 'FAILED' ? s.koOn : ''} onClick={() => setStep(st.position, { status: 'FAILED' })}><X size={20} />Échec</button>
+                <button className={st.status === 'BLOCKED' ? s.wnOn : ''} onClick={() => setStep(st.position, { status: 'BLOCKED' })}><Ban size={20} />Bloqué</button>
+              </div>
+            )}
+            {canEdit && ['FAILED', 'BLOCKED'].includes(st.status) && (
+              <textarea className={s.input} style={{ marginTop: 10, minHeight: 72 }} placeholder="Que s'est-il passé ?" value={st.comment || ''}
+                onChange={(e) => setSteps(steps.map((x) => (x.position === st.position ? { ...x, comment: e.target.value } : x)))}
+                onBlur={() => rec.mutate({ status: 'IN_PROGRESS' })} />
+            )}
+          </div>
         </div>
       ))}
       {q.data.findings.length > 0 && <p className={s.meta}>Signalements liés : {q.data.findings.map((f) => f.code).join(', ')}</p>}
       {canEdit && (
         <>
-          <label className={s.field}><span>Remarque générale (facultatif)</span><textarea className={s.input} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <button className={s.btn} disabled={pending > 0 || rec.isPending} onClick={() => rec.mutate({ status: final })}>
-            {pending > 0 ? `Encore ${pending} étape${pending > 1 ? 's' : ''}` : final === 'PASSED' ? 'Terminer ✓' : 'Terminer avec problème'}
-          </button>
-          {final !== 'PASSED' && pending === 0 && (
-            <button className={`${s.btn} ${s.ghost}`} style={{ marginTop: 8 }} onClick={() => nav(`/join/${token}/signaler?run=${runId}`)}>Signaler le problème</button>
-          )}
+          <label className={s.field} style={{ marginTop: 16 }}><span>Remarque générale (facultatif)</span><textarea className={s.input} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <div className={s.sticky}>
+            <button className={s.btn} disabled={pending > 0 || rec.isPending} onClick={() => rec.mutate({ status: final })}>
+              {pending > 0 ? `Encore ${pending} étape${pending > 1 ? 's' : ''} à valider` : <><Flag size={18} />{final === 'PASSED' ? 'Terminer le test' : 'Terminer avec problème'}</>}
+            </button>
+            {final !== 'PASSED' && pending === 0 && (
+              <button className={`${s.btn} ${s.ghost}`} style={{ marginTop: 8 }} onClick={() => nav(`/join/${token}/signaler?run=${runId}`)}><Bug size={18} />Signaler le problème</button>
+            )}
+          </div>
           <Err e={rec.error} />
         </>
       )}
@@ -177,13 +203,15 @@ function Report({ token }) {
   })
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   return (
-    <Shell token={token} eyebrow="Signalement" title="Qu'avez-vous remarqué ?" back={`/join/${token}`}>
-      <div className={s.seg} style={{ marginBottom: 12 }}>{TYPES.map(([k, l]) => <button key={k} className={f.type === k ? s.on : ''} onClick={() => setF({ ...f, type: k })}>{l}</button>)}</div>
-      {f.type === 'BUG' && <div className={s.seg} style={{ marginBottom: 12 }}>{SEVS.map(([k, l]) => <button key={k} className={f.severity === k ? s.on : ''} onClick={() => setF({ ...f, severity: k })}>{l}</button>)}</div>}
-      <label className={s.field}><span>Titre court</span><input className={s.input} value={f.title} maxLength={200} onChange={set('title')} /></label>
+    <Shell token={token} eyebrow="Nouveau signalement" title="Qu'avez-vous remarqué ?" back={`/join/${token}`}>
+      {/* eslint-disable-next-line no-unused-vars */}
+      <div className={s.seg}>{TYPES.map(([k, l, I]) => <button key={k} className={f.type === k ? s.on : ''} onClick={() => setF({ ...f, type: k })}><I size={20} />{l}</button>)}</div>
+      {f.type === 'BUG' && (<><div className={s.field}><span>Gravité</span></div>
+        <div className={s.seg} style={{ marginTop: -8 }}>{SEVS.map(([k, l]) => <button key={k} className={f.severity === k ? s.on : ''} style={{ minHeight: 46 }} onClick={() => setF({ ...f, severity: k })}>{l}</button>)}</div></>)}
+      <label className={s.field}><span>Titre court</span><input className={s.input} value={f.title} maxLength={200} onChange={set('title')} placeholder="ex. L'app se ferme à la publication" /></label>
       <label className={s.field}><span>Description</span><textarea className={s.input} value={f.description} onChange={set('description')} placeholder="Ce qui s'est passé, sur quel écran…" /></label>
-      {f.type === 'BUG' && <label className={s.field}><span>Comment le reproduire ? (facultatif)</span><textarea className={s.input} value={f.reproductionSteps} onChange={set('reproductionSteps')} placeholder="1. … 2. … 3. …" /></label>}
-      <button className={s.btn} disabled={!f.title.trim() || !f.description.trim() || m.isPending} onClick={() => m.mutate()}>Envoyer</button>
+      {f.type === 'BUG' && <label className={s.field}><span>Comment le reproduire ? (facultatif)</span><textarea className={s.input} value={f.reproductionSteps} onChange={set('reproductionSteps')} placeholder={'1. …\n2. …\n3. …'} /></label>}
+      <button className={s.btn} disabled={!f.title.trim() || !f.description.trim() || m.isPending} onClick={() => m.mutate()}><Send size={18} />Envoyer</button>
       <Err e={m.error} />
     </Shell>
   )
@@ -194,10 +222,10 @@ function Findings({ token }) {
   return (
     <Gate q={q}>{(d) => (
       <Shell token={token} eyebrow="Historique" title="Mes retours">
-        {d.findings.length === 0 && <p className={s.empty}>Rien signalé pour l'instant.<br />Appuyez sur ＋ dès que vous voyez quelque chose d'anormal.</p>}
+        {d.findings.length === 0 && <div className={s.empty}><MessageSquare size={40} /><h2>Rien signalé</h2><p>Appuyez sur + dès que vous voyez quelque chose d'anormal.</p></div>}
         {d.findings.map((f) => (
-          <div key={f.code} className={s.card} onClick={() => nav(`/join/${token}/retours/${f.code}`)}>
-            <div className={s.row}><div className={s.grow}><div className={s.title}>{f.title}</div><div className={s.meta}>{f.code}</div></div><Pill v={f.status} /></div>
+          <div key={f.code} className={`${s.card} ${s.tap}`} onClick={() => nav(`/join/${token}/retours/${f.code}`)}>
+            <div className={s.row}><div className={s.grow}><div className={s.title}>{f.title}</div><div className={s.meta}>{f.code}</div></div><Pill v={f.status} /><ChevronRight size={20} className={s.chev} /></div>
           </div>
         ))}
       </Shell>
@@ -216,15 +244,14 @@ function Finding({ token }) {
   const f = q.data; if (!f) return <div className={s.root}><p className={s.empty}>Chargement…</p></div>
   return (
     <Shell token={token} eyebrow={f.code} title={f.title} back={`/join/${token}/retours`}>
-      <div className={s.card}><Pill v={f.status} />
-        <div className={s.md} style={{ marginTop: 8 }}><Markdown>{f.description}</Markdown></div></div>
-      {f.note && <div className={s.banner}>Message de l'équipe : {f.note}</div>}
+      <div className={s.card}><Pill v={f.status} /><div className={s.md} style={{ marginTop: 10 }}><Markdown>{f.description}</Markdown></div></div>
+      {f.note && <div className={s.banner}><MessageSquare size={18} />Équipe Handyra : {f.note}</div>}
       {f.comments.map((c, i) => <div key={i} className={`${s.msg} ${c.fromTeam ? s.team : ''}`}><div className={s.meta}>{c.fromTeam ? 'Équipe Handyra' : 'Vous'}</div>{c.content}</div>)}
-      {f.canReply && (<>
+      {f.canReply && (<div style={{ marginTop: 14 }}>
         <textarea className={s.input} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Ajouter une précision…" />
-        <button className={s.btn} style={{ marginTop: 8 }} disabled={!txt.trim() || m.isPending} onClick={() => m.mutate()}>Envoyer</button>
+        <button className={s.btn} style={{ marginTop: 10 }} disabled={!txt.trim() || m.isPending} onClick={() => m.mutate()}><Send size={18} />Envoyer</button>
         <Err e={m.error} />
-      </>)}
+      </div>)}
     </Shell>
   )
 }
