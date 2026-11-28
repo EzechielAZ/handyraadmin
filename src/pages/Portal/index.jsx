@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag } from 'lucide-react'
+import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag, Clock } from 'lucide-react'
 import Markdown from '../../components/docs/Markdown/Markdown'
 import { portal, detectDevice } from './api'
 import s from './Portal.module.css'
@@ -17,7 +17,7 @@ const Ring = ({ pct }) => (
     <circle cx="40" cy="40" r="34" fill="none" stroke="#fff" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${pct * 2.136} 999`} transform="rotate(-90 40 40)" />
     <text x="40" y="46" textAnchor="middle" fontSize="20" fontWeight="700" fill="#fff">{pct}%</text></svg>
 )
-const Pill = ({ v }) => <span className={`${s.pill} ${s[v] || ''}`}>{ST[v] || v}</span>
+const Pill = ({ v, dot }) => <span className={`${s.pill} ${s[v] || ''}`}>{dot && <i className={s.pdot} />}{ST[v] || v}</span>
 
 const Sk = ({ w = '100%', h = 14, r }) => <span className={s.sk} style={{ width: w, height: h, borderRadius: r }} />
 const SkRow = () => (
@@ -355,41 +355,137 @@ function Report({ token }) {
   )
 }
 
+const TYPE_LABEL = { BUG: 'Bug', UX: 'Confort', SUGGESTION: 'Idée', QUESTION: 'Question' }
+const TYPE_ICON = { BUG: Bug, UX: Palette, SUGGESTION: Lightbulb, QUESTION: HelpCircle }
+const SEV_LABEL = { MINOR: 'Mineur', MAJOR: 'Gênant', CRITICAL: 'Bloquant', BLOCKER: 'Bloquant', TRIVIAL: 'Mineur' }
+const STATUS_INFO = {
+  NEW: { t: 'Bien reçu', d: 'L\'équipe va examiner votre signalement.', I: Clock },
+  NEED_INFO: { t: 'Précisions demandées', d: 'L\'équipe a besoin d\'un complément de votre part.', I: MessageSquare },
+  CONFIRMED: { t: 'Confirmé', d: 'Merci ! Le problème est confirmé, nous nous en occupons.', I: Check },
+  REJECTED: { t: 'Non retenu', d: 'Ce signalement ne sera pas traité. Merci de votre aide.', I: X },
+}
+const rel = (iso) => {
+  const d = new Date(iso); const diff = (Date.now() - d.getTime()) / 1000
+  if (diff < 60) return 'à l\'instant'
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`
+  if (diff < 172800) return 'hier'
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+const hhmm = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+const dayLabel = (iso) => {
+  const d = new Date(iso); const t = new Date(); const dd = Math.floor((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000)
+  return dd <= 0 ? 'Aujourd\'hui' : dd === 1 ? 'Hier' : dd < 7 ? 'Cette semaine' : 'Plus ancien'
+}
+const FILTERS = [['ALL', 'Tous'], ['REPLY', 'À répondre'], ['OPEN', 'En cours'], ['DONE', 'Traités']]
+
 function Findings({ token }) {
-  const nav = useNavigate(); const q = useHome(token)
+  const nav = useNavigate(); const q = useHome(token); const [flt, setFlt] = useState('ALL')
   return (
-    <Gate token={token} q={q} skeleton={<SkList />}>{(d) => (
-      <Shell token={token} eyebrow="Historique" title="Mes retours">
-        {d.findings.length === 0 && <div className={s.empty}><MessageSquare size={40} /><h2>Rien signalé</h2><p>Appuyez sur + dès que vous voyez quelque chose d'anormal.</p></div>}
-        {d.findings.map((f) => (
-          <div key={f.code} className={`${s.card} ${s.tap}`} onClick={() => nav(`/join/${token}/retours/${f.code}`)}>
-            <div className={s.row}><div className={s.grow}><div className={s.title}>{f.title}</div><div className={s.meta}>{f.code}</div></div><Pill v={f.status} /><ChevronRight size={20} className={s.chev} /></div>
-          </div>
-        ))}
-      </Shell>
-    )}</Gate>
+    <Gate token={token} q={q} skeleton={<SkList />}>{(d) => {
+      const match = { ALL: () => true, REPLY: (f) => f.status === 'NEED_INFO', OPEN: (f) => f.status === 'NEW', DONE: (f) => ['CONFIRMED', 'REJECTED'].includes(f.status) }
+      const cnt = (k) => d.findings.filter(match[k]).length
+      const list = d.findings.filter(match[flt])
+      const groups = []; list.forEach((f) => { const g = dayLabel(f.createdAt); const last = groups[groups.length - 1]; if (last?.g === g) last.items.push(f); else groups.push({ g, items: [f] }) })
+      const reply = cnt('REPLY')
+      return (
+        <Shell token={token} eyebrow={`${d.findings.length} signalement${d.findings.length > 1 ? 's' : ''}`} title="Mes retours">
+          {reply > 0 && <div className={`${s.banner} ${s.tap}`} onClick={() => setFlt('REPLY')}><MessageSquare size={18} /><span className={s.grow}>{reply} réponse{reply > 1 ? 's' : ''} attendue{reply > 1 ? 's' : ''} de votre part</span><ChevronRight size={18} /></div>}
+          {d.findings.length > 0 && (
+            <div className={s.chips} role="tablist">{FILTERS.map(([k, l]) => (
+              <button key={k} role="tab" aria-selected={flt === k} className={`${s.chip} ${flt === k ? s.chipOn : ''}`} onClick={() => setFlt(k)}>{l}<em>{cnt(k)}</em></button>))}</div>
+          )}
+          {d.findings.length === 0 && (
+            <div className={s.empty}><div className={s.emptyIco}><MessageSquare size={30} /></div><h2>Aucun retour pour l'instant</h2>
+              <p>Un bug, une idée, un détail qui vous gêne ? Appuyez sur + pour nous le dire en quelques secondes.</p>
+              <button className={s.btn} style={{ marginTop: 20, maxWidth: 280 }} onClick={() => nav(`/join/${token}/signaler`)}><Plus size={18} />Faire un signalement</button></div>
+          )}
+          {d.findings.length > 0 && list.length === 0 && <div className={s.empty}><h2>Rien ici</h2><p>Aucun signalement dans cette catégorie.</p></div>}
+          {groups.map((g) => (
+            <div key={g.g}>
+              <div className={s.section}>{g.g}</div>
+              {g.items.map((f) => {
+                const Ic = TYPE_ICON[f.type] || Bug
+                return (
+                  <div key={f.code} className={`${s.fcard} ${s.tap} ${f.needsReply ? s.fcardAlert : ''}`} onClick={() => nav(`/join/${token}/retours/${f.code}`)}>
+                    <div className={s.row} style={{ alignItems: 'flex-start' }}>
+                      <div className={`${s.ico} ${s['t' + f.type] || ''}`}><Ic size={20} /></div>
+                      <div className={s.grow}>
+                        <div className={s.ftitle}>{f.title}</div>
+                        <div className={s.meta}>{TYPE_LABEL[f.type] || 'Retour'} · {f.code} · {rel(f.createdAt)}</div>
+                        <div style={{ marginTop: 8 }}><Pill v={f.status} dot /></div>
+                      </div>
+                      <ChevronRight size={20} className={s.chev} style={{ marginTop: 10 }} />
+                    </div>
+                    {f.needsReply && <div className={s.alertStrip}><MessageSquare size={14} />L'équipe attend votre réponse</div>}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </Shell>
+      )
+    }}</Gate>
   )
 }
 
 function Finding({ token }) {
-  const { code } = useParams(); const qc = useQueryClient(); const [txt, setTxt] = useState('')
+  const { code } = useParams(); const qc = useQueryClient(); const [txt, setTxt] = useState(''); const endRef = useRef(null); const taRef = useRef(null)
+  const [toast, showToast, closeToast] = useToast()
   const q = useQuery({ queryKey: ['portal', token, 'f', code], queryFn: () => portal.findingGet(token, code), retry: false })
   const m = useMutation({
-    mutationFn: () => portal.findingComment(token, code, txt),
-    onSuccess: (r) => { setTxt(''); qc.setQueryData(['portal', token, 'f', code], r); qc.invalidateQueries({ queryKey: ['portal', token], exact: true }) },
+    mutationFn: () => portal.findingComment(token, code, txt.trim()),
+    onSuccess: (r) => { setTxt(''); if (taRef.current) taRef.current.style.height = 'auto'; qc.setQueryData(['portal', token, 'f', code], r); qc.invalidateQueries({ queryKey: ['portal', token], exact: true }); showToast('Message envoyé', { ok: true }) },
+    onError: (e) => showToast(e),
   })
+  useEffect(() => { if (q.data?.comments?.length) endRef.current?.scrollIntoView({ block: 'end' }) }, [q.data?.comments?.length])
   if (q.isError) return <Shell token={token} title="Introuvable" back={`/join/${token}/retours`}><Err e={q.error} /></Shell>
-  const f = q.data; if (!f) return <Shell token={token} eyebrow={<Sk w={90} h={12} />} title={<Sk w={220} h={28} />} back={`/join/${token}/retours`}><SkRow /><SkRow /></Shell>
+  const f = q.data
+  if (!f) return <Shell token={token} eyebrow={<Sk w={90} h={12} />} title={<Sk w={220} h={28} />} back={`/join/${token}/retours`}><SkRow /><SkRow /></Shell>
+  const info = STATUS_INFO[f.status] || STATUS_INFO.NEW; const SI = info.I; const Ic = TYPE_ICON[f.type] || Bug
+  const step = f.status === 'NEW' ? 1 : f.status === 'NEED_INFO' ? 1 : 2
+  const steps = [['Reçu', 0], ['Examen', 1], [f.status === 'REJECTED' ? 'Non retenu' : 'Confirmé', 2]]
+  const composer = f.canReply ? (
+    <div className={s.composer}>
+      <textarea ref={taRef} className={s.composeInput} rows={1} value={txt} maxLength={3000} placeholder={f.status === 'NEED_INFO' ? 'Répondre à l\'équipe…' : 'Ajouter une précision…'}
+        onChange={(e) => { setTxt(e.target.value); grow(e) }} />
+      <button className={s.sendBtn} aria-label="Envoyer" disabled={!txt.trim() || m.isPending} onClick={() => { haptic(); m.mutate() }}>
+        {m.isPending ? <Loader size={20} className={s.spin} /> : <Send size={20} />}</button>
+    </div>
+  ) : null
   return (
-    <Shell token={token} eyebrow={f.code} title={f.title} back={`/join/${token}/retours`}>
-      <div className={s.card}><Pill v={f.status} /><div className={s.md} style={{ marginTop: 10 }}><Markdown>{f.description}</Markdown></div></div>
-      {f.note && <div className={s.banner}><MessageSquare size={18} />Équipe Handyra : {f.note}</div>}
-      {f.comments.map((c, i) => <div key={i} className={`${s.msg} ${c.fromTeam ? s.team : ''}`}><div className={s.meta}>{c.fromTeam ? 'Équipe Handyra' : 'Vous'}</div>{c.content}</div>)}
-      {f.canReply && (<div style={{ marginTop: 14 }}>
-        <textarea className={s.input} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Ajouter une précision…" />
-        <button className={s.btn} style={{ marginTop: 10 }} disabled={!txt.trim() || m.isPending} onClick={() => m.mutate()}><Send size={18} />Envoyer</button>
-        <Err e={m.error} />
-      </div>)}
+    <Shell token={token} eyebrow={`${TYPE_LABEL[f.type] || 'Retour'} · ${f.code}`} title={f.title} back={`/join/${token}/retours`} dock={composer}>
+      <div className={`${s.statusCard} ${s['st' + f.status] || ''}`}>
+        <div className={s.row} style={{ alignItems: 'flex-start' }}>
+          <div className={s.statusIco}><SI size={20} /></div>
+          <div className={s.grow}><div className={s.title}>{info.t}</div><div className={s.statusD}>{info.d}</div></div>
+        </div>
+        <div className={s.track} aria-hidden="true">{steps.map(([l, i]) => (
+          <div key={l} className={`${s.trackStep} ${i < step ? s.trackDone : ''} ${i === step ? s.trackNow : ''}`}><span className={s.trackDot} /><span>{l}</span></div>))}</div>
+      </div>
+      {f.note && <div className={s.noteCard}><div className={s.label}>Message de l'équipe</div>{f.note}</div>}
+      <div className={s.card}>
+        <div className={s.row} style={{ marginBottom: 12 }}>
+          <div className={`${s.ico} ${s['t' + f.type] || ''}`}><Ic size={20} /></div>
+          <div className={s.grow}><div className={s.title}>{TYPE_LABEL[f.type] || 'Retour'}</div><div className={s.meta}>Envoyé {rel(f.createdAt)} · {hhmm(f.createdAt)}</div></div>
+          {f.severity && <span className={`${s.pill} ${s['sv' + f.severity] || ''}`}>{SEV_LABEL[f.severity] || f.severity}</span>}
+        </div>
+        <div className={s.md}><Markdown>{f.description}</Markdown></div>
+      </div>
+      <div className={s.section}>Conversation</div>
+      {f.comments.length === 0 && <p className={s.convEmpty}>Aucun échange pour l'instant. Si l'équipe a une question, elle apparaîtra ici.</p>}
+      <div className={s.chat}>{f.comments.map((c, i) => (
+        <div key={i} className={`${s.bubbleRow} ${c.fromTeam ? '' : s.mine}`}>
+          {c.fromTeam && <div className={s.avatar}>H</div>}
+          <div className={`${s.bubble} ${c.fromTeam ? s.bTeam : s.bMine}`}>
+            <div className={s.bWho}>{c.fromTeam ? 'Équipe Handyra' : 'Vous'}</div>
+            <div className={s.bText}>{c.content}</div>
+            <div className={s.bTime}>{hhmm(c.createdAt)}</div>
+          </div>
+        </div>))}</div>
+      {!f.canReply && <p className={s.convEmpty}>La campagne est terminée : les échanges sont clos.</p>}
+      <div ref={endRef} />
+      <Toast t={toast} onClose={closeToast} />
     </Shell>
   )
 }
