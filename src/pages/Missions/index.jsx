@@ -1,349 +1,271 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useMissions } from '../../hooks/useMissions'
-import { useCategories, buildCategoryOptions } from '../../hooks/useCategories'
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQueryClient, useIsFetching } from '@tanstack/react-query'
+import { Button, Input, Select, Spinner } from '../../components/ui'
+import { Search, Download, RefreshCw, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useDebounce } from '../../hooks/useDebounce'
+import { useCategories, buildCategoryOptions } from '../../hooks/useCategories'
 import { useFilterStore } from '../../store/filterStore'
-import { Button, Input, Select, Badge, Table, Spinner, EmptyState, ActionsMenu } from '../../components/ui'
+import { useMissionSection, usePrefetchMissionsTab, fetchMissionsForExport } from '../../hooks/useMissionsAdmin'
+import { formatDateTime } from '../../utils/formatters'
 import {
-  Search, Download, Briefcase, CheckCircle, Clock, XCircle,
-  Calendar, X, Zap, Eye, Ban,
-} from 'lucide-react'
-import { formatDate, formatCurrency, formatStatus } from '../../utils/formatters'
+  TABS, PERIOD_OPTIONS, TYPE_OPTIONS, ATTENTION_OPTIONS, TYPE_LABEL, PRICING_LABEL, MODE_LABEL, CANCEL_ACTOR, ESCROW,
+  statusBadge, relativeTime, num,
+} from './missionsConfig'
 import styles from './Missions.module.css'
+
+/* Chaque onglet, le tiroir et les fenêtres d'action sont des « chunks » séparés : téléchargés au premier besoin */
+const MissionsOverview = lazy(() => import('./MissionsOverview'))
+const MissionsAnalytics = lazy(() => import('./MissionsAnalytics'))
+const MissionsTable = lazy(() => import('./MissionsTable'))
+const MissionDrawer = lazy(() => import('./MissionDrawer'))
+const MissionActionModals = lazy(() => import('./MissionActionModals'))
+
+const TabFallback = () => <div className={styles.loading}><Spinner size="lg" /></div>
+
+const TAB_KEY = 'missions:tab'
+const readTab = () => {
+  try { const t = sessionStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'overview' } catch { return 'overview' }
+}
+
+/* Filtres de la liste : monté (et donc chargé) uniquement sur l'onglet « Missions » */
+const ListFilters = ({ searchInput, setSearchInput, onClear, activeCount }) => {
+  const { globalFilters, setGlobalFilter } = useFilterStore()
+  const { categories } = useCategories()
+  const categoryOptions = useMemo(() => buildCategoryOptions(categories, 'Toutes catégories'), [categories])
+  return (
+    <div className={styles.filterBar} role="search">
+      <Input size="md" icon={Search} placeholder="Mission, client, artisan, téléphone, #id…"
+        value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+      <Select size="md" options={TYPE_OPTIONS} value={globalFilters.type || 'all'}
+        onChange={(v) => setGlobalFilter('type', v === 'all' ? null : v)} />
+      <Select size="md" searchable options={categoryOptions} value={globalFilters.category || 'all'}
+        onChange={(v) => setGlobalFilter('category', v === 'all' ? null : v)} />
+      <Select size="md" options={ATTENTION_OPTIONS} value={globalFilters.attention || 'all'}
+        onChange={(v) => setGlobalFilter('attention', v === 'all' ? null : v)} />
+      <button type="button" className={styles.clearBtn} onClick={onClear} disabled={activeCount === 0}>
+        <X size={11} /> Effacer
+      </button>
+    </div>
+  )
+}
 
 const Missions = () => {
   const navigate = useNavigate()
-  const location = useLocation()
-  const {
-    globalFilters, setGlobalFilter,
-    pagination, setPagination,
-    sorting, setSorting,
-    activateScope,
-  } = useFilterStore()
+  const qc = useQueryClient()
+  const prefetchTab = usePrefetchMissionsTab()
+  const fetchingCount = useIsFetching({ queryKey: ['missions-admin'] })
 
-  /* Reset des filtres quand on change de scope */
-  useEffect(() => { activateScope('missions') }, [location.pathname])
+  const { globalFilters, setGlobalFilter, dateRange, setDateRange, activateScope } = useFilterStore()
 
+  const [tab, setTab] = useState(readTab)
+  /* Un onglet n'est monté (et ne charge rien) qu'à sa première visite, puis reste en mémoire */
+  const [visited, setVisited] = useState(() => new Set([readTab()]))
+  const [detail, setDetail] = useState(null)
+  const [action, setAction] = useState(null)
+  const [exporting, setExporting] = useState(false)
+
+  useEffect(() => { activateScope('missions') }, [activateScope])
+
+  const selectTab = useCallback((id) => {
+    setTab(id)
+    setVisited((v) => (v.has(id) ? v : new Set(v).add(id)))
+    try { sessionStorage.setItem(TAB_KEY, id) } catch { /* ignore */ }
+  }, [])
+
+  /* Raccourcis : 1 / 2 / 3 pour changer d'onglet (hors champs de saisie) */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const i = Number(e.key) - 1
+      if (TABS[i]) selectTab(TABS[i].id)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selectTab])
+
+  const onTabKeyDown = (e) => {
+    const i = TABS.findIndex((t) => t.id === tab)
+    if (e.key === 'ArrowRight') selectTab(TABS[(i + 1) % TABS.length].id)
+    if (e.key === 'ArrowLeft') selectTab(TABS[(i - 1 + TABS.length) % TABS.length].id)
+  }
+
+  /* Recherche avec debounce */
   const [searchInput, setSearchInput] = useState(globalFilters.search || '')
   const debouncedSearch = useDebounce(searchInput, 350)
-
   useEffect(() => {
-    if (debouncedSearch !== globalFilters.search) setGlobalFilter('search', debouncedSearch)
+    if (debouncedSearch !== (globalFilters.search || '')) setGlobalFilter('search', debouncedSearch)
   }, [debouncedSearch])
-
   useEffect(() => {
-    if (globalFilters.search === '' && searchInput !== '') setSearchInput('')
+    if (!globalFilters.search && searchInput !== '') setSearchInput('')
   }, [globalFilters.search])
 
-  const { missions, total, isLoading, isFetching, isError, error, refetch, cancelMission } = useMissions()
+  const periodValue = dateRange?.key ?? PERIOD_OPTIONS.find((o) => o.label === dateRange?.label)?.value ?? 'all'
 
-  const { categories } = useCategories()
-  const categoryOptions = useMemo(
-    () => buildCategoryOptions(categories, 'Toutes catégories'),
-    [categories]
-  )
+  const hasListFilters = [globalFilters.search, globalFilters.status, globalFilters.type, globalFilters.category, globalFilters.attention]
+    .some(Boolean)
+  const activeFiltersCount = (hasListFilters ? 1 : 0) + (dateRange ? 1 : 0)
 
-  const statusOptions = [
-    { value: 'all', label: 'Tous statuts' },
-    { value: 'PENDING', label: 'En attente' },
-    { value: 'ACCEPTED', label: 'Acceptée' },
-    { value: 'ON_WAY', label: 'En chemin' },
-    { value: 'IN_PROGRESS', label: 'En cours' },
-    { value: 'COMPLETED', label: 'Terminée' },
-    { value: 'CANCELLED', label: 'Annulée' },
-    { value: 'INCIDENT', label: 'Incident' },
-  ]
-  const typeOptions = [
-    { value: 'all', label: 'Tous types' },
-    { value: 'IMMEDIATE', label: 'Immédiate' },
-    { value: 'SCHEDULED', label: 'Planifiée' },
-  ]
-  const worldOptions = [
-    { value: 'all', label: 'Tous mondes' },
-    { value: 'SERVICE', label: 'Service' },
-    { value: 'CONSTRUCTION', label: 'Construction' },
-  ]
-
-  const rowActions = (row) => {
-    const items = [
-      { label: 'Voir détails', icon: Eye, onClick: () => navigate(`/missions/${row.id_mission}`) },
-    ]
-    if (!['COMPLETED', 'CANCELLED'].includes(row.status)) {
-      items.push({ separator: true })
-      items.push({
-        label: 'Annuler la mission',
-        icon: Ban,
-        danger: true,
-        onClick: () => {
-          if (confirm('Confirmer l\'annulation ?')) {
-            cancelMission({ id: row.id_mission, reason: 'Annulée par admin' })
-          }
-        },
-      })
-    }
-    return items
-  }
-
-  const columns = [
-    {
-      id: 'mission',
-      header: 'Mission',
-      accessor: (row) => ({
-        id: row.id_mission?.slice(0, 8),
-        description: row.description,
-        type: row.mission_type,
-        world: row.mission_world,
-      }),
-      cell: ({ value }) => (
-        <div className={styles.missionCell}>
-          <span className={styles.missionId}>#{value.id}</span>
-          <span className={styles.missionDesc}>{value.description}</span>
-          <span className={styles.missionType}>
-            {value.type === 'IMMEDIATE'
-              ? <><Zap size={10} /> Immédiate</>
-              : <><Calendar size={10} /> Planifiée</>}
-            {value.world === 'CONSTRUCTION' && <> · 🏗 Construction</>}
-          </span>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      id: 'client',
-      header: 'Client',
-      accessor: (row) => row.client?.full_name,
-      cell: ({ value }) => <span className={styles.cellPrimary}>{value || '—'}</span>,
-    },
-    {
-      id: 'artisan',
-      header: 'Artisan',
-      accessor: (row) => row.artisan?.user?.full_name || null,
-      cell: ({ value }) => value
-        ? <span className={styles.cellSecondary}>{value}</span>
-        : <span className={styles.unassigned}>Non assigné</span>,
-    },
-    {
-      id: 'category',
-      header: 'Catégorie',
-      accessor: (row) => row.category?.name,
-      cell: ({ value }) => value
-        ? <span className={styles.cellSecondary}>{value}</span>
-        : <span className={styles.muted}>—</span>,
-    },
-    {
-      id: 'status',
-      header: 'Statut',
-      accessor: (row) => row.status,
-      cell: ({ value }) => {
-        const s = formatStatus(value)
-        return <Badge variant={s.color} size="sm" dot>{s.label}</Badge>
-      },
-      sortable: true,
-    },
-    {
-      id: 'amount',
-      header: 'Montant',
-      accessor: (row) => row.final_price || row.estimated_price,
-      cell: ({ value }) => (
-        <span className={styles.amount}>{formatCurrency(value || 0)}</span>
-      ),
-      sortable: true,
-    },
-    {
-      id: 'date',
-      header: 'Date',
-      accessor: (row) => row.scheduled_at || row.created_at,
-      cell: ({ value }) => (
-        <span className={styles.dateCell}><Calendar size={11} />{formatDate(value)}</span>
-      ),
-      sortable: true,
-    },
-    {
-      id: 'actions',
-      header: '',
-      accessor: (row) => row,
-      cell: ({ value }) => <ActionsMenu items={rowActions(value)} />,
-      width: '50px',
-      sortable: false,
-    },
-  ]
-
-  const activeFiltersCount = [
-    globalFilters.search, globalFilters.status,
-    globalFilters.type, globalFilters.world, globalFilters.category,
-  ].filter(Boolean).length
-
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchInput('')
     setGlobalFilter('search', '')
+    ;['status', 'type', 'category', 'attention', 'cancelledBy', 'artisanId', 'clientId'].forEach((k) => setGlobalFilter(k, null))
+    setDateRange('all')
+  }, [setGlobalFilter, setDateRange])
+
+  /* Une alerte de la vue d'ensemble ouvre la liste déjà filtrée sur sa cause */
+  const pickAlert = useCallback((code) => {
     setGlobalFilter('status', null)
-    setGlobalFilter('type', null)
-    setGlobalFilter('world', null)
-    setGlobalFilter('category', null)
-  }
+    setGlobalFilter('attention', code)
+    selectTab('missions')
+  }, [setGlobalFilter, selectTab])
 
-  const handleExport = () => {
-    const csv = missions.map(m => ({
-      ID: m.id_mission, Description: m.description,
-      Client: m.client?.full_name, Artisan: m.artisan?.user?.full_name || 'Non assigné',
-      Catégorie: m.category?.name, Statut: m.status,
-      Montant: m.final_price || m.estimated_price,
-      Date: formatDate(m.created_at),
-    }))
-    const headers = Object.keys(csv[0] || {}).join(',')
-    const lines = csv.map(r => Object.values(r).map(v =>
-      typeof v === 'string' && v.includes(',') ? `"${v}"` : v
-    ).join(','))
-    const blob = new Blob([[headers, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `missions_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  /* Rafraîchir : seules les requêtes actuellement affichées sont relancées */
+  const refresh = () => qc.invalidateQueries({ queryKey: ['missions-admin'] })
 
-  if (isLoading && missions.length === 0) {
-    return (
-      <div className={styles.loading}>
-        <Spinner size="lg" />
-        <span className={styles.loadingText}>Chargement des missions…</span>
-      </div>
-    )
-  }
+  const kpis = qc.getQueryState(['missions-admin', 'section', 'kpis', {
+    start: dateRange?.start || null, end: dateRange?.end || null,
+  }])
+  const [, tick] = useState(0)
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(t) }, [])
 
-  if (isError) {
-    return (
-      <div className={styles.page}>
-        <div style={{
-          padding: 16, background: 'var(--danger-subtle)',
-          border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
-          color: 'var(--danger)', fontSize: 'var(--fs-sm)',
-        }}>
-          <strong>Erreur :</strong> {error?.message || 'Erreur inconnue'}
-          <br />
-          <button onClick={() => refetch()} style={{
-            marginTop: 8, padding: '6px 10px', border: '1px solid var(--danger-border)',
-            background: 'var(--bg)', color: 'var(--danger)',
-            borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-          }}>Réessayer</button>
-        </div>
-      </div>
-    )
-  }
+  const copy = useCallback((txt) => {
+    navigator.clipboard.writeText(txt || '')
+    toast.success('Identifiant copié')
+  }, [])
 
-  const inProgress = missions.filter(m => ['ACCEPTED', 'ON_WAY', 'IN_PROGRESS'].includes(m.status)).length
-  const completed  = missions.filter(m => m.status === 'COMPLETED').length
-  const cancelled  = missions.filter(m => m.status === 'CANCELLED').length
+  const openDetail = useCallback((row) => setDetail(row), [])
+  const closeDetail = useCallback(() => setDetail(null), [])
+  const openPage = useCallback((row) => navigate(`/missions/${row.id_mission}`), [navigate])
+  const doAction = useCallback((type, mission) => setAction({ type, mission }), [])
+  const closeAction = useCallback(() => setAction(null), [])
+  /* Après une action réussie, le tiroir (qui affiche l'ancien statut) est refermé : la liste se met à jour seule */
+  const actionDone = useCallback(() => { setAction(null); setDetail(null) }, [])
+
+  const handleExport = async () => {
+    try {
+      setExporting(true)
+      const items = await fetchMissionsForExport({ onlyPeriod: tab !== 'missions' })
+      if (!items.length) { toast('Rien à exporter'); return }
+      const rows = items.map((m) => ({
+        ID: m.id_mission, Titre: m.title || '', Description: m.description || '',
+        Client: m.client_name || '', 'Téléphone client': m.client_phone || '',
+        Artisan: m.artisan_name || 'Non assigné', Catégorie: m.category_name || '', Zone: m.zone || '',
+        Type: TYPE_LABEL[m.mission_type] || m.mission_type, Mode: MODE_LABEL[m.mission_mode] || m.mission_mode,
+        Tarification: PRICING_LABEL[m.pricing_type] || m.pricing_type || '',
+        Statut: statusBadge(m.status).label, 'Annulée par': CANCEL_ACTOR[m.cancelled_by] || '', Motif: m.cancellation_label || m.cancellation_reason || '',
+        Montant: m.amount, 'Commission Handyra': m.handyra_fee, Encaissé: m.paid_amount, Remboursé: m.refunded_amount,
+        Séquestre: ESCROW[m.escrow_state]?.label || '', Tentatives: num(m.attempts),
+        'Délai acceptation (min)': m.accept_delay_min ?? '', 'Durée (min)': m.duration_min ?? '', Note: m.rating ?? '',
+        'Créée le': m.created_at ? formatDateTime(m.created_at) : '', 'Terminée le': m.ended_at ? formatDateTime(m.ended_at) : '',
+      }))
+      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const headers = Object.keys(rows[0])
+      const text = '﻿' + [headers.map(esc).join(';'), ...rows.map((r) => headers.map((h) => esc(r[h])).join(';'))].join('\n')
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8;' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `missions_${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`${items.length} mission${items.length > 1 ? 's' : ''} exportée${items.length > 1 ? 's' : ''}`)
+    } catch (e) {
+      toast.error(e.message || "Échec de l'export")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.pageHeaderInner}>
-          <div className={styles.toolbar}>
-            <div className={styles.filtersGroup}>
-              <div className={styles.searchWrap}>
-                <Input size="md" icon={Search}
-                  placeholder="Rechercher une mission…"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)} />
-              </div>
-              <div className={styles.filterItem}>
-                <Select size="md" options={statusOptions}
-                  value={globalFilters.status || 'all'}
-                  onChange={(v) => setGlobalFilter('status', v === 'all' ? null : v)} />
-              </div>
-              <div className={styles.filterItem}>
-                <Select size="md" options={typeOptions}
-                  value={globalFilters.type || 'all'}
-                  onChange={(v) => setGlobalFilter('type', v === 'all' ? null : v)} />
-              </div>
-              <div className={styles.filterItem}>
-                <Select size="md" options={worldOptions}
-                  value={globalFilters.world || 'all'}
-                  onChange={(v) => setGlobalFilter('world', v === 'all' ? null : v)} />
-              </div>
-              <div className={styles.filterItem}>
-                <Select size="md" searchable clearable options={categoryOptions}
-                  value={globalFilters.category || 'all'}
-                  onChange={(v) => setGlobalFilter('category', v === 'all' ? null : v)} />
-              </div>
-              {activeFiltersCount > 0 && (
-                <button type="button" className={styles.clearBtn} onClick={clearFilters}>
-                  <X size={11} /> Effacer
+          {/* Ligne 1 : navigation + actions globales. Position IDENTIQUE sur tous les onglets. */}
+          <div className={`${styles.headRow} ${tab === 'missions' ? styles.headRowRuled : ''}`}>
+            <nav className={styles.tabs} role="tablist" aria-label="Sections missions" onKeyDown={onTabKeyDown}>
+              {TABS.map((t, i) => (
+                <button key={t.id} type="button" role="tab" id={`mis-tab-${t.id}`} aria-selected={tab === t.id}
+                  aria-controls={`mis-panel-${t.id}`} tabIndex={tab === t.id ? 0 : -1}
+                  title={`${t.label} (${i + 1})`}
+                  className={`${styles.tab} ${tab === t.id ? styles.tabActive : ''}`}
+                  onClick={() => selectTab(t.id)}
+                  onMouseEnter={() => tab !== t.id && !visited.has(t.id) && prefetchTab(t.id)}
+                  onFocus={() => tab !== t.id && !visited.has(t.id) && prefetchTab(t.id)}
+                >
+                  {t.label}
+                  {t.id === 'overview' && <AlertCount />}
                 </button>
-              )}
-            </div>
+              ))}
+            </nav>
+
             <div className={styles.actions}>
-              <Button variant="outline" size="md" icon={Download} onClick={handleExport}>
+              <span className={styles.updated} aria-live="polite">
+                {kpis?.dataUpdatedAt ? `Mis à jour ${relativeTime(kpis.dataUpdatedAt)}` : ''}
+              </span>
+              <div className={styles.periodSelect}>
+                <Select size="md" options={PERIOD_OPTIONS} value={periodValue} onChange={(v) => setDateRange(v)} />
+              </div>
+              <Button variant="outline" size="md" icon={RefreshCw} onClick={refresh}
+                isLoading={fetchingCount > 0} aria-label="Rafraîchir" title="Rafraîchir" />
+              <Button variant="outline" size="md" icon={Download} onClick={handleExport} isLoading={exporting}
+                title={tab === 'missions' ? 'Exporter les résultats filtrés' : 'Exporter les missions de la période'}>
                 Exporter
               </Button>
             </div>
           </div>
+
+          {/* Ligne 2 : filtres propres à la liste (grille fixe, ne touche jamais aux actions) */}
+          {tab === 'missions' && (
+            <ListFilters searchInput={searchInput} setSearchInput={setSearchInput}
+              onClear={clearFilters} activeCount={activeFiltersCount} />
+          )}
         </div>
       </header>
 
       <div className={styles.content}>
-        <div className={styles.stats}>
-          <div className={styles.stat}>
-            <Briefcase size={18} />
-            <div>
-              <span className={styles.statValue}>{total}</span>
-              <span className={styles.statLabel}>Total</span>
-            </div>
+        {visited.has('overview') && (
+          <div id="mis-panel-overview" role="tabpanel" aria-labelledby="mis-tab-overview" hidden={tab !== 'overview'} className={styles.tabPanel}>
+            <Suspense fallback={<TabFallback />}><MissionsOverview onPickAlert={pickAlert} onOpen={openDetail} /></Suspense>
           </div>
-          <div className={styles.stat}>
-            <Clock size={18} className={styles.warning} />
-            <div>
-              <span className={styles.statValue}>{inProgress}</span>
-              <span className={styles.statLabel}>En cours</span>
-            </div>
+        )}
+        {visited.has('analytics') && (
+          <div id="mis-panel-analytics" role="tabpanel" aria-labelledby="mis-tab-analytics" hidden={tab !== 'analytics'} className={styles.tabPanel}>
+            <Suspense fallback={<TabFallback />}><MissionsAnalytics /></Suspense>
           </div>
-          <div className={styles.stat}>
-            <CheckCircle size={18} className={styles.success} />
-            <div>
-              <span className={styles.statValue}>{completed}</span>
-              <span className={styles.statLabel}>Terminées</span>
-            </div>
+        )}
+        {visited.has('missions') && (
+          <div id="mis-panel-missions" role="tabpanel" aria-labelledby="mis-tab-missions" hidden={tab !== 'missions'} className={styles.tabPanel}>
+            <Suspense fallback={<TabFallback />}>
+              <MissionsTable onOpen={openDetail} onOpenPage={openPage} onCopy={copy} onAction={doAction}
+                onClear={clearFilters} hasFilters={activeFiltersCount > 0} />
+            </Suspense>
           </div>
-          <div className={styles.stat}>
-            <XCircle size={18} className={styles.danger} />
-            <div>
-              <span className={styles.statValue}>{cancelled}</span>
-              <span className={styles.statLabel}>Annulées</span>
-            </div>
-          </div>
-        </div>
-
-        {missions.length > 0 ? (
-          <Table
-            columns={columns}
-            data={missions}
-            rowKey="id_mission"
-            loading={isFetching}
-            sortable
-            onSort={(col, dir) => setSorting(col, dir)}
-            onRowClick={(row) => navigate(`/missions/${row.id_mission}`)}
-            pagination={{
-              currentPage: pagination.page,
-              totalPages: Math.ceil(total / pagination.pageSize),
-              pageSize: pagination.pageSize,
-              total,
-              onPageChange: (page) => setPagination({ page }),
-            }}
-          />
-        ) : (
-          <EmptyState
-            icon={Briefcase}
-            title="Aucune mission trouvée"
-            description="Aucune mission ne correspond à vos critères."
-            action={{ label: 'Réinitialiser', onClick: clearFilters }}
-          />
         )}
       </div>
+
+      {detail && (
+        <Suspense fallback={null}>
+          <MissionDrawer key={detail.id_mission} seed={detail} onClose={closeDetail} onCopy={copy}
+            onOpenPage={openPage} onAction={doAction} />
+        </Suspense>
+      )}
+      {action && (
+        <Suspense fallback={null}>
+          <MissionActionModals action={action} onClose={closeAction} onDone={actionDone} />
+        </Suspense>
+      )}
     </div>
   )
+}
+
+/* Pastille d'alertes : réutilise la section « alerts » (même cache que la bande d'alertes) */
+const AlertCount = () => {
+  const q = useMissionSection('alerts')
+  const n = (q.data || []).reduce((s, a) => s + num(a.count), 0)
+  return n > 0 ? <span className={styles.tabBadge} aria-label={`${n} missions à traiter`}>{n}</span> : null
 }
 
 export default Missions

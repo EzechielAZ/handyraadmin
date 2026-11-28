@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useReports } from '../../hooks/useReports'
 import { useFilterStore } from '../../store/filterStore'
@@ -31,11 +31,14 @@ import styles from './Reports.module.css'
 
 const Reports = () => {
   const navigate = useNavigate()
-  const { globalFilters, setGlobalFilter, dateRange, setDateRange, pagination, setPagination } = useFilterStore()
+  const { globalFilters, setGlobalFilter, dateRange, setDateRange, pagination, setPagination, activateScope } = useFilterStore()
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
   
-  const { reports, total, isLoading } = useReports()
+  useEffect(() => { activateScope('reports') }, [activateScope])
+
+  const { reports: rawReports, total = 0, isLoading } = useReports()
+  const reports = rawReports || []
 
   // Options pour les selects
   const statusOptions = [
@@ -56,11 +59,14 @@ const Reports = () => {
   ]
 
   const periodOptions = [
+    { value: 'all', label: 'Toute la période' },
     { value: 'today', label: "Aujourd'hui" },
-    { value: 'week', label: 'Cette semaine' },
-    { value: 'month', label: 'Ce mois' },
-    { value: 'quarter', label: 'Ce trimestre' },
-    { value: 'custom', label: 'Personnalisé' },
+    { value: 'yesterday', label: 'Hier' },
+    { value: '7days', label: '7 derniers jours' },
+    { value: '30days', label: '30 derniers jours' },
+    { value: '90days', label: '90 derniers jours' },
+    { value: 'thisMonth', label: 'Ce mois' },
+    { value: 'lastMonth', label: 'Mois dernier' },
   ]
 
   // Configuration des tabs
@@ -120,7 +126,7 @@ const Reports = () => {
             </Badge>
           </div>
           <div className={styles.reportDescription}>
-            {value.description.substring(0, 80)}...
+            {(value.description || '').substring(0, 80)}{(value.description || '').length > 80 ? '…' : ''}
           </div>
         </div>
       ),
@@ -245,11 +251,7 @@ const Reports = () => {
   }
 
   const handlePeriodChange = (value) => {
-    if (value === 'custom') {
-      // Ouvrir calendrier
-    } else {
-      setDateRange(value)
-    }
+    setDateRange(value)
   }
 
   const handleExport = async () => {
@@ -293,7 +295,7 @@ const Reports = () => {
         <div className={styles.actions}>
           <Select
             options={periodOptions}
-            value={dateRange.label}
+            value={dateRange?.key ?? 'all'}
             onChange={handlePeriodChange}
             size="sm"
             className={styles.periodSelect}
@@ -420,7 +422,7 @@ const Reports = () => {
           onRowClick={(row) => navigate(`/reports/${row.id_report}`)}
           pagination={{
             currentPage: pagination.page,
-            totalPages: Math.ceil(total / pagination.pageSize),
+            totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)),
             pageSize: pagination.pageSize,
             total: total,
             onPageChange: (page) => setPagination({ page }),
@@ -437,7 +439,7 @@ const Reports = () => {
               setGlobalFilter('search', '')
               setGlobalFilter('status', null)
               setGlobalFilter('reason', null)
-              setDateRange('month')
+              setDateRange('all')
               setActiveTab('all')
             }
           }}

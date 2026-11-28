@@ -57,6 +57,9 @@ export const useIssueMutations = () => {
   }
   const invalidateDetail = (ref) =>
     qc.invalidateQueries({ queryKey: docsKeys.issues.detail(ref) })
+  // L'état des objectifs de release liés à une issue dépend de son statut.
+  const invalidateReleases = () =>
+    qc.invalidateQueries({ queryKey: docsKeys.releases.all() })
 
   const create = useDocsMutation({
     mutationFn: (p) => adminRpc('docs_issue_create', {
@@ -101,6 +104,7 @@ export const useIssueMutations = () => {
     onSuccess: (data, vars) => {
       invalidateList()
       invalidateDetail(data.issue.id_issue)
+      invalidateReleases()
       toast.success(`Issue → ${vars.newStatus}`)
     },
   })

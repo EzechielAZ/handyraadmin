@@ -1,0 +1,51 @@
+.chartWrap { position: relative; width: 100%; }
+.svg { width: 100%; height: auto; display: block; overflow: visible; }
+.grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
+.axis { fill: var(--text-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+.cursor { stroke: var(--border-strong); stroke-width: 1; }
+.dot { stroke: var(--bg); stroke-width: 1.5; }
+.empty { padding: 28px 0; text-align: center; font-size: var(--fs-sm); color: var(--text-3); }
+
+.tooltip {
+  position: absolute; top: 0; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px; pointer-events: none; z-index: 5; white-space: nowrap;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  font-size: var(--fs-xs); color: var(--text-2);
+}
+.tooltip strong { color: var(--text); font-weight: var(--fw-semibold); }
+.tooltip b { color: var(--text); font-weight: var(--fw-semibold); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.tooltip i, .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: var(--fs-xs); color: var(--text-3); }
+
+.donutWrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.donut { flex-shrink: 0; }
+.donutTrack { stroke: var(--border); }
+.donutValue { fill: var(--text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.donutLabel { fill: var(--text-3); font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+.donutLegend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 130px; flex: 1; }
+.donutLegend li { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); }
+.donutLegend i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.dlName { flex: 1; color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dlVal { color: var(--text); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+
+.hbars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.hbHead { display: flex; justify-content: space-between; gap: 10px; }
+.hbName { font-size: var(--fs-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hbVal { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hbTrack { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 5px; }
+.hbFill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.hbMeta { display: block; margin-top: 4px; font-size: var(--fs-xs); color: var(--text-3); }
+
+.heat { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.heatHours, .heatRow { display: grid; grid-template-columns: 30px repeat(24, minmax(10px, 1fr)); gap: 3px; align-items: center; }
+.heatHours span { font-size: 9px; color: var(--text-3); text-align: center; }
+.heatDay { font-size: var(--fs-xs); color: var(--text-3); }
+.heatCell { height: 16px; border-radius: 3px; }
+
+.deltaUp, .deltaDown, .deltaFlat { font-size: var(--fs-xs); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.deltaUp { color: var(--success); }
+.deltaDown { color: var(--danger); }
+.deltaFlat { color: var(--text-3); }

@@ -156,12 +156,63 @@ export const useReleaseMutations = () => {
     },
   })
 
+  const updateObjective = useDocsMutation({
+    mutationFn: ({ objectiveId, payload }) =>
+      adminRpc('docs_release_update_objective', {
+        p_objective_id: objectiveId, p_payload: payload,
+      }),
+    onSuccess: (data, vars) => {
+      invalidateDetail(vars.releaseId)
+      toast.success('Objectif mis à jour')
+    },
+  })
+
+  const deleteObjective = useDocsMutation({
+    mutationFn: ({ objectiveId }) =>
+      adminRpc('docs_release_delete_objective', { p_objective_id: objectiveId }),
+    onSuccess: (data, vars) => {
+      invalidateDetail(vars.releaseId)
+      toast.success('Objectif supprimé')
+    },
+  })
+
   const achieveObjective = useDocsMutation({
     mutationFn: ({ releaseId, objectiveId }) =>
       adminRpc('docs_release_achieve_objective', { p_objective_id: objectiveId }),
     onSuccess: (data, vars) => {
       invalidateDetail(vars.releaseId)
       toast.success('Objectif atteint')
+    },
+  })
+
+  const unachieveObjective = useDocsMutation({
+    mutationFn: ({ objectiveId }) =>
+      adminRpc('docs_release_unachieve_objective', { p_objective_id: objectiveId }),
+    onSuccess: (data, vars) => {
+      invalidateDetail(vars.releaseId)
+      toast.success('Objectif rouvert')
+    },
+  })
+
+  /* Lien objectif ↔ issue (linkType 'ISSUE', targetId = id_issue)
+     ou objectif ↔ feature de la release (linkType 'FEATURE', targetId = id_item) */
+  const addObjectiveLink = useDocsMutation({
+    mutationFn: ({ objectiveId, linkType, targetId }) =>
+      adminRpc('docs_release_add_objective_link', {
+        p_objective_id: objectiveId, p_link_type: linkType, p_target_id: targetId,
+      }),
+    onSuccess: (data, vars) => {
+      invalidateDetail(vars.releaseId)
+      toast.success('Élément lié à l\'objectif')
+    },
+  })
+
+  const removeObjectiveLink = useDocsMutation({
+    mutationFn: ({ linkId }) =>
+      adminRpc('docs_release_remove_objective_link', { p_link_id: linkId }),
+    onSuccess: (data, vars) => {
+      invalidateDetail(vars.releaseId)
+      toast.success('Lien retiré')
     },
   })
 
@@ -377,7 +428,9 @@ export const useReleaseMutations = () => {
 
   return {
     create, update,
-    addObjective, achieveObjective,
+    addObjective, updateObjective, deleteObjective,
+    achieveObjective, unachieveObjective,
+    addObjectiveLink, removeObjectiveLink,
     addFeature, updateFeatureItem, removeFeature,
     checkFeature, uncheckFeature, bulkCheckFeatures,
     applyChecklistTemplate, checkItem,

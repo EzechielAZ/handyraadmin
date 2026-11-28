@@ -1,27 +1,28 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import {
-  ArrowLeft, Target, Boxes, ListChecks, PenTool, Rocket, Calendar,
-  AlertCircle, Check, RefreshCw, RotateCcw, ChevronRight,
+  ArrowLeft, Target, Boxes, ListChecks, PenTool, Rocket,
+  AlertCircle, Check, RotateCcw, Pencil, Trash2, Link2, Bug, X,
 } from 'lucide-react'
 import {
-  Button, Card, Tabs, Spinner, Badge, ActionsMenu,
+  Button, Card, Tabs, Spinner,
 } from '../../../components/ui'
 import {
-  DocsHeader, DocsErrorState, StatusBadge, Tooltip, Icon,
+  DocsHeader, DocsErrorState, StatusBadge, Tooltip, ConfirmDialog,
 } from '../../../components/docs'
+import { Markdown } from '../../../components/docs/Markdown/Markdown'
 import {
-  useRelease, useReleaseMutations, useReleaseReadiness,
+  useRelease, useReleaseMutations, useReleaseReadiness, useIssues,
   RELEASE_STATUS, RELEASE_TYPE, RELEASE_INCLUSION_TYPE,
   RELEASE_FEATURE_STATUS, SIGNOFF_ROLE, SIGNOFF_STATUS,
-  CHECKLIST_CATEGORY, FEATURE_STATUS,
+  CHECKLIST_CATEGORY, ISSUE_STATUS,
 } from '../../../hooks/docs'
+import { useDebounce } from '../../../hooks/useDebounce'
 import {
   formatDateShort, formatDateTime, formatTargetDate, formatRelative, formatPercent,
 } from '../../../utils/docsFormatters'
 import styles from './ReleaseDetail.module.css'
 import { ReleaseReadinessDialog } from './ReleaseReadinessDialog'
-import { ConfirmDialog } from '../../../components/docs'
 
 const TABS = [
   { id: 'overview',  label: 'Vue d\'ensemble', icon: Target },
@@ -30,6 +31,14 @@ const TABS = [
   { id: 'checklist', label: 'Checklist',       icon: ListChecks },
   { id: 'signoffs',  label: 'Sign-offs',       icon: PenTool },
 ]
+
+/* État calculé d'un objectif (valeurs produites par le SQL : docs.release_objectives_computed) */
+const OBJECTIVE_STATE = {
+  ACHIEVED:     { label: 'Atteint',  color: 'green',  icon: 'Check' },
+  IN_PROGRESS:  { label: 'En cours', color: 'orange', icon: 'Play' },
+  NEEDS_REVIEW: { label: 'À revoir', color: 'red',    icon: 'AlertCircle' },
+  PENDING:      { label: 'À faire',  color: 'gray',   icon: 'Circle' },
+}
 
 export const ReleaseDetailPage = () => {
   const { ref } = useParams()
@@ -56,6 +65,7 @@ export const ReleaseDetailPage = () => {
 
   const counts = useMemo(() => ({
     objectives: objectives.length,
+    objectivesDone: objectives.filter((o) => o.is_achieved).length,
     features: features.length,
     checklist: checklist.length,
     signoffs: signoffs.length,
@@ -157,6 +167,11 @@ export const ReleaseDetailPage = () => {
             />
           </div>
           <div className={styles.progressStats}>
+            {progress.objectives?.total > 0 && (
+              <span>
+                Objectifs : <strong>{progress.objectives.done}</strong> / {progress.objectives.total}
+              </span>
+            )}
             <span>
               Features : <strong>{progress.features.done}</strong> / {progress.features.total}
             </span>
@@ -180,7 +195,9 @@ export const ReleaseDetailPage = () => {
           <ReleaseObjectives
             release={release}
             objectives={objectives}
+            features={features}
             mutations={mutations}
+            locked={isLocked}
           />
         )}
         {tab === 'features' && (
@@ -277,8 +294,8 @@ const ReleaseOverview = ({ release, progress, counts }) => (
       <ul className={styles.countList}>
         <li>
           <Target size={13} />
-          <span>Objectifs</span>
-          <strong>{counts.objectives}</strong>
+          <span>Objectifs atteints</span>
+          <strong>{counts.objectivesDone} / {counts.objectives}</strong>
         </li>
         <li>
           <Boxes size={13} />
@@ -316,9 +333,13 @@ const ReleaseOverview = ({ release, progress, counts }) => (
 
 /* ═══════════════════════════════════════════════════════════════
    TAB 2 — Objectifs
+   Un objectif SANS lien est manuel (marquer atteint / rouvrir).
+   Un objectif AVEC liens (issues, features de la release) a un état
+   calculé côté serveur : il ne peut plus être coché à la main.
    ═══════════════════════════════════════════════════════════════ */
-const ReleaseObjectives = ({ release, objectives, mutations }) => {
+const ReleaseObjectives = ({ release, objectives, features, mutations, locked }) => {
   const [title, setTitle] = useState('')
+  const [toDelete, setToDelete] = useState(null)
 
   const handleAdd = async () => {
     if (!title.trim()) return
@@ -331,73 +352,424 @@ const ReleaseObjectives = ({ release, objectives, mutations }) => {
     } catch { /* toast */ }
   }
 
+  const handleConfirmDelete = async () => {
+    if (!toDelete) return
+    try {
+      await mutations.deleteObjective.mutateAsync({
+        releaseId: release.id_release,
+        objectiveId: toDelete.id_objective,
+      })
+      setToDelete(null)
+    } catch { /* toast */ }
+  }
+
   return (
     <Card padding="md">
-      <div className={styles.addRow}>
-        <input
-          type="text"
-          className={styles.addInput}
-          placeholder="Nouvel objectif (ex : Refondre le chat)"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        />
-        <Button
-          variant="primary"
-          icon={Check}
-          onClick={handleAdd}
-          isLoading={mutations.addObjective.isPending}
-          disabled={!title.trim()}
-        >
-          Ajouter
-        </Button>
-      </div>
+      {!locked && (
+        <div className={styles.addRow}>
+          <input
+            type="text"
+            className={styles.addInput}
+            placeholder="Nouvel objectif (ex : Refondre le chat)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          />
+          <Button
+            variant="primary"
+            icon={Check}
+            onClick={handleAdd}
+            isLoading={mutations.addObjective.isPending}
+            disabled={!title.trim()}
+          >
+            Ajouter
+          </Button>
+        </div>
+      )}
 
       {objectives.length === 0 ? (
         <div className={styles.emptyTab}>
-          Aucun objectif défini. Ajoutez un premier objectif ci-dessus.
+          {locked
+            ? 'Aucun objectif défini pour cette release.'
+            : 'Aucun objectif défini. Ajoutez un premier objectif ci-dessus, puis liez-y des issues ou des features.'}
         </div>
       ) : (
         <ul className={styles.objectiveList}>
           {objectives.map((o) => (
-            <li
+            <ObjectiveItem
               key={o.id_objective}
-              className={`${styles.objectiveItem} ${o.is_achieved ? styles.objectiveDone : ''}`}
-            >
-              <span className={styles.objectiveCheck}>
-                {o.is_achieved ? <Check size={12} /> : <span />}
-              </span>
-              <div className={styles.objectiveBody}>
-                <span className={styles.objectiveTitle}>{o.title}</span>
-                {o.description_md && (
-                  <span className={styles.objectiveDesc}>{o.description_md}</span>
-                )}
-                {o.is_achieved && o.achieved_at && (
-                  <span className={styles.objectiveMeta}>
-                    Atteint {formatRelative(o.achieved_at)}
-                  </span>
-                )}
-              </div>
-              {!o.is_achieved && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    mutations.achieveObjective.mutate({
-                      releaseId: release.id_release,
-                      objectiveId: o.id_objective,
-                    })
-                  }
-                  isLoading={mutations.achieveObjective.isPending}
-                >
-                  Marquer atteint
-                </Button>
+              objective={o}
+              release={release}
+              features={features}
+              mutations={mutations}
+              locked={locked}
+              onDelete={() => setToDelete(o)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer l'objectif"
+        description={
+          toDelete
+            ? `« ${toDelete.title} » sera supprimé${toDelete.links_total > 0 ? ' ainsi que ses liens (les issues et features liées ne sont pas touchées)' : ''}.`
+            : ''
+        }
+        confirmLabel="Supprimer"
+        variant="danger"
+        loading={mutations.deleteObjective.isPending}
+      />
+    </Card>
+  )
+}
+
+const ObjectiveItem = ({ objective: o, release, features, mutations, locked, onDelete }) => {
+  const [editing, setEditing] = useState(false)
+  const [draftTitle, setDraftTitle] = useState(o.title)
+  const [draftDesc, setDraftDesc] = useState(o.description_md || '')
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const releaseId = release.id_release
+  const isLinked = o.mode === 'LINKED'
+  const done = !!o.is_achieved
+  const needsReview = o.state === 'NEEDS_REVIEW'
+
+  const startEdit = () => {
+    setDraftTitle(o.title)
+    setDraftDesc(o.description_md || '')
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    if (!draftTitle.trim()) return
+    try {
+      await mutations.updateObjective.mutateAsync({
+        releaseId,
+        objectiveId: o.id_objective,
+        payload: { title: draftTitle.trim(), description_md: draftDesc },
+      })
+      setEditing(false)
+    } catch { /* toast */ }
+  }
+
+  const classNames = [
+    styles.objectiveItem,
+    done ? styles.objectiveDone : '',
+    needsReview ? styles.objectiveReview : '',
+  ].join(' ')
+
+  return (
+    <li className={classNames}>
+      <span className={`${styles.objectiveCheck} ${needsReview ? styles.objectiveCheckReview : ''}`}>
+        {done ? <Check size={12} /> : needsReview ? <AlertCircle size={12} /> : <span />}
+      </span>
+
+      <div className={styles.objectiveBody}>
+        {editing ? (
+          <div className={styles.editForm}>
+            <input
+              type="text"
+              className={styles.addInput}
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+              placeholder="Titre de l'objectif"
+              autoFocus
+            />
+            <textarea
+              className={styles.editTextarea}
+              value={draftDesc}
+              onChange={(e) => setDraftDesc(e.target.value)}
+              placeholder="Description (Markdown, optionnelle)"
+              rows={3}
+            />
+            <div className={styles.editActions}>
+              <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
+                Annuler
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Check}
+                onClick={saveEdit}
+                isLoading={mutations.updateObjective.isPending}
+                disabled={!draftTitle.trim()}
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={styles.objectiveHead}>
+              <span className={styles.objectiveTitle}>{o.title}</span>
+              <StatusBadge map={OBJECTIVE_STATE} value={o.state} size="sm" />
+              {isLinked && (
+                <span className={styles.objectiveProgress}>
+                  {o.links_done} / {o.links_total}
+                </span>
               )}
+            </div>
+
+            {o.description_md && (
+              <div className={styles.objectiveDesc}>
+                <Markdown compact>{o.description_md}</Markdown>
+              </div>
+            )}
+
+            {done && o.achieved_at && (
+              <span className={styles.objectiveMeta}>
+                Atteint {formatRelative(o.achieved_at)}
+              </span>
+            )}
+
+            {isLinked && (
+              <ul className={styles.objectiveLinks}>
+                {o.links.map((l) => {
+                  const isIssue = l.link_type === 'ISSUE'
+                  return (
+                    <li
+                      key={l.id_link}
+                      className={`${styles.linkItem} ${l.needs_review ? styles.linkItemReview : ''}`}
+                      title={l.needs_review ? 'Cet élément est abandonné ou reporté : à revoir' : undefined}
+                    >
+                      {isIssue ? <Bug size={12} /> : <Boxes size={12} />}
+                      {isIssue ? (
+                        <Link to={`/docs/issues/${l.code}`} className={styles.linkCode}>
+                          {l.code}
+                        </Link>
+                      ) : (
+                        <span className={styles.linkKind}>Feature</span>
+                      )}
+                      <span className={styles.linkTitle}>{l.title}</span>
+                      <StatusBadge
+                        map={isIssue ? ISSUE_STATUS : RELEASE_FEATURE_STATUS}
+                        value={l.status}
+                        size="sm"
+                        showIcon={false}
+                      />
+                      {!locked && (
+                        <button
+                          type="button"
+                          className={styles.linkRemove}
+                          onClick={() =>
+                            mutations.removeObjectiveLink.mutate({
+                              releaseId, linkId: l.id_link,
+                            })
+                          }
+                          disabled={mutations.removeObjectiveLink.isPending}
+                          aria-label="Retirer ce lien"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            {pickerOpen && !locked && (
+              <ObjectiveLinkPicker
+                objective={o}
+                release={release}
+                features={features}
+                mutations={mutations}
+                onClose={() => setPickerOpen(false)}
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      {!editing && !locked && (
+        <div className={styles.objectiveActions}>
+          {!isLinked && !done && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                mutations.achieveObjective.mutate({
+                  releaseId, objectiveId: o.id_objective,
+                })
+              }
+              isLoading={mutations.achieveObjective.isPending}
+            >
+              Marquer atteint
+            </Button>
+          )}
+          {!isLinked && done && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={RotateCcw}
+              onClick={() =>
+                mutations.unachieveObjective.mutate({
+                  releaseId, objectiveId: o.id_objective,
+                })
+              }
+              isLoading={mutations.unachieveObjective.isPending}
+            >
+              Rouvrir
+            </Button>
+          )}
+          <Tooltip content="Lier une issue ou une feature">
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${pickerOpen ? styles.iconBtnActive : ''}`}
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-label="Lier une issue ou une feature"
+            >
+              <Link2 size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Modifier">
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={startEdit}
+              aria-label="Modifier l'objectif"
+            >
+              <Pencil size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Supprimer">
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+              onClick={onDelete}
+              aria-label="Supprimer l'objectif"
+            >
+              <Trash2 size={14} />
+            </button>
+          </Tooltip>
+        </div>
+      )}
+    </li>
+  )
+}
+
+/* Sélecteur : issues (recherche serveur) ou features déjà présentes dans la release */
+const ObjectiveLinkPicker = ({ objective, release, features, mutations, onClose }) => {
+  const [kind, setKind] = useState('ISSUE')
+  const [q, setQ] = useState('')
+  const debouncedQ = useDebounce(q, 300)
+
+  const { issues, isFetching } = useIssues({
+    search: debouncedQ, pageSize: 8, sortBy: 'updated_at', sortDir: 'desc',
+  })
+
+  const linkedIssueIds = new Set(
+    objective.links.filter((l) => l.link_type === 'ISSUE').map((l) => l.issue_id),
+  )
+  const linkedFeatureIds = new Set(
+    objective.links.filter((l) => l.link_type === 'FEATURE').map((l) => l.release_feature_id),
+  )
+
+  const availableIssues = issues.filter((i) => !linkedIssueIds.has(i.id_issue))
+  const needle = q.trim().toLowerCase()
+  const availableFeatures = features
+    .filter((f) => !linkedFeatureIds.has(f.id_item))
+    .filter((f) => !needle || f.title.toLowerCase().includes(needle))
+
+  const link = (linkType, targetId) =>
+    mutations.addObjectiveLink.mutate({
+      releaseId: release.id_release,
+      objectiveId: objective.id_objective,
+      linkType,
+      targetId,
+    })
+
+  const pending = mutations.addObjectiveLink.isPending
+
+  return (
+    <div className={styles.picker}>
+      <div className={styles.pickerHead}>
+        <div className={styles.pickerTabs}>
+          <button
+            type="button"
+            className={`${styles.pickerTab} ${kind === 'ISSUE' ? styles.pickerTabActive : ''}`}
+            onClick={() => setKind('ISSUE')}
+          >
+            <Bug size={12} /> Issue
+          </button>
+          <button
+            type="button"
+            className={`${styles.pickerTab} ${kind === 'FEATURE' ? styles.pickerTabActive : ''}`}
+            onClick={() => setKind('FEATURE')}
+          >
+            <Boxes size={12} /> Feature de la release
+          </button>
+        </div>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={onClose}
+          aria-label="Fermer le sélecteur"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <input
+        type="text"
+        className={styles.addInput}
+        placeholder={kind === 'ISSUE' ? 'Rechercher une issue (code, titre)…' : 'Filtrer les features de la release…'}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+
+      {kind === 'ISSUE' ? (
+        availableIssues.length === 0 ? (
+          <div className={styles.pickerEmpty}>
+            {isFetching ? 'Recherche…' : 'Aucune issue à lier.'}
+          </div>
+        ) : (
+          <ul className={styles.pickerList}>
+            {availableIssues.map((i) => (
+              <li key={i.id_issue}>
+                <button
+                  type="button"
+                  className={styles.pickerItem}
+                  onClick={() => link('ISSUE', i.id_issue)}
+                  disabled={pending}
+                >
+                  <span className={styles.linkCode}>{i.code}</span>
+                  <span className={styles.linkTitle}>{i.title}</span>
+                  <StatusBadge map={ISSUE_STATUS} value={i.status} size="sm" showIcon={false} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : availableFeatures.length === 0 ? (
+        <div className={styles.pickerEmpty}>
+          {features.length === 0
+            ? 'Cette release ne contient encore aucune feature (onglet Features).'
+            : 'Aucune feature à lier.'}
+        </div>
+      ) : (
+        <ul className={styles.pickerList}>
+          {availableFeatures.map((f) => (
+            <li key={f.id_item}>
+              <button
+                type="button"
+                className={styles.pickerItem}
+                onClick={() => link('FEATURE', f.id_item)}
+                disabled={pending}
+              >
+                <span className={styles.linkTitle}>{f.title}</span>
+                <StatusBadge map={RELEASE_FEATURE_STATUS} value={f.status} size="sm" showIcon={false} />
+              </button>
             </li>
           ))}
         </ul>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -481,11 +853,6 @@ const ReleaseFeatures = ({ release, features, mutations, locked }) => {
    TAB 4 — Checklist
    ═══════════════════════════════════════════════════════════════ */
 const ReleaseChecklist = ({ release, checklist, mutations, locked }) => {
-  const [templateOpen, setTemplateOpen] = useState(false)
-  // const templates dispo via useChecklistTemplates() — gardé simple ici
-  // Pour éviter un import inutile dans ce batch, on ajoute un bouton qui
-  // pointe vers un sélecteur interne (cf. implémentation finale).
-
   const grouped = useMemo(() => {
     const g = {}
     checklist.forEach((c) => {
