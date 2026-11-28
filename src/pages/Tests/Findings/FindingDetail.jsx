@@ -19,7 +19,7 @@ const Block = ({ title, children }) => children ? (
 export const FindingDetailPage = () => {
   const { ref } = useParams()
   const { canWrite } = useTestsAccess()
-  const { finding, campaign, tester, run, issue, comments, isLoading, isError, error, refetch } = useTestFinding(ref)
+  const { data: full, finding, campaign, tester, run, issue, comments, isLoading, isError, error, refetch } = useTestFinding(ref)
   const { triage, comment, requestRetest } = useTestFindingMutations()
   const [decision, setDecision] = useState(null)
   const [reply, setReply] = useState('')
@@ -68,6 +68,18 @@ export const FindingDetailPage = () => {
       <div className={styles.layout}>
         <div className={styles.stack}>
           <Block title="Description"><Markdown>{finding.description_md}</Markdown></Block>
+          {full?.attachments?.length > 0 && (
+            <Block title={`Captures d'écran (${full.attachments.length})`}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                {full.attachments.map((a) => (
+                  <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'block', aspectRatio: '3 / 4', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border, #e5e7eb)' }}>
+                    <img src={a.url} alt="Capture d'écran" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </a>
+                ))}
+              </div>
+            </Block>
+          )}
           <Block title="Étapes pour reproduire">{finding.reproduction_steps && <Markdown>{finding.reproduction_steps}</Markdown>}</Block>
           {(finding.expected_behavior || finding.actual_behavior) && (
             <div className={styles.card}>

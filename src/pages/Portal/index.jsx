@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag, Clock } from 'lucide-react'
+import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag, Clock, ImagePlus, XCircle } from 'lucide-react'
 import Markdown from '../../components/docs/Markdown/Markdown'
-import { portal, detectDevice } from './api'
+import { portal, detectDevice, uploadImage } from './api'
 import s from './Portal.module.css'
 
 const ST = { ASSIGNED: 'À faire', IN_PROGRESS: 'En cours', PASSED: 'Réussi', FAILED: 'Échec', BLOCKED: 'Bloqué', SKIPPED: 'Ignoré',
@@ -292,22 +292,40 @@ function Report({ token }) {
   const [f, setF] = useState(() => { try { return { ...DRAFT0, ...JSON.parse(localStorage.getItem(key) || '{}') } } catch { return DRAFT0 } })
   const [restored] = useState(() => !!(f.title || f.description))
   const [sent, setSent] = useState(null); const [showRepro, setShowRepro] = useState(!!f.reproductionSteps)
-  const titleRef = useRef(null); const descRef = useRef(null)
+  const titleRef = useRef(null); const descRef = useRef(null); const fileRef = useRef(null)
+  const [files, setFiles] = useState([]); const [attachWarn, setAttachWarn] = useState(false)
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(f)) } catch { /* ignore */ } }, [f, key])
+  const addFiles = (list) => {
+    const room = 4 - files.length
+    Array.from(list).slice(0, room).forEach((file) => {
+      const id = `${Date.now()}-${Math.random()}`; const preview = URL.createObjectURL(file)
+      setFiles((cur) => [...cur, { id, preview, status: 'up' }])
+      uploadImage(token, file)
+        .then((data) => setFiles((cur) => cur.map((x) => (x.id === id ? { ...x, status: 'ok', data } : x))))
+        .catch((e) => setFiles((cur) => cur.map((x) => (x.id === id ? { ...x, status: 'err', error: e.message } : x))))
+    })
+    if (fileRef.current) fileRef.current.value = ''
+  }
+  const uploading = files.some((x) => x.status === 'up')
   const m = useMutation({
-    mutationFn: () => portal.findingCreate(token, { ...f, runId: runId || null, severity: f.type === 'BUG' ? f.severity : null }),
+    mutationFn: async () => {
+      const r = await portal.findingCreate(token, { ...f, runId: runId || null, severity: f.type === 'BUG' ? f.severity : null })
+      const ok = files.filter((x) => x.status === 'ok').map((x) => x.data)
+      if (ok.length) { try { await portal.findingAttach(token, r.code, ok) } catch { setAttachWarn(true) } }
+      return r
+    },
     onSuccess: (r) => { try { localStorage.removeItem(key) } catch { /* ignore */ } qc.invalidateQueries({ queryKey: ['portal', token] }); setSent(r.code) },
   })
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
-  const hint = !f.title.trim() ? 'Ajoutez un titre' : !f.description.trim() ? 'Décrivez ce qui s\'est passé' : null
-  const submit = () => { if (hint) { (!f.title.trim() ? titleRef : descRef).current?.focus(); return } haptic(); m.mutate() }
+  const hint = !f.title.trim() ? 'Ajoutez un titre' : !f.description.trim() ? 'Décrivez ce qui s\'est passé' : uploading ? 'Envoi des images…' : null
+  const submit = () => { if (uploading) return; if (hint) { (!f.title.trim() ? titleRef : descRef).current?.focus(); return } haptic(); m.mutate() }
 
   if (sent) {
     return (
       <Shell token={token} eyebrow={sent} title="Merci, c'est envoyé">
         <div className={s.success}>
           <div className={s.successIco}><Check size={44} strokeWidth={3} /></div>
-          <p>L'équipe Handyra a bien reçu votre retour. Vous serez prévenu ici si nous avons besoin de précisions.</p>
+          <p>L'équipe Handyra a bien reçu votre retour. Vous serez prévenu ici si nous avons besoin de précisions.</p>{attachWarn && <div className={s.banner} style={{ textAlign: 'left' }}><AlertTriangle size={18} />Les images n'ont pas pu être jointes. Vous pouvez les décrire dans la conversation.</div>}
           <button className={s.btn} onClick={() => nav(`/join/${token}/retours/${sent}`, { replace: true })}>Voir mon signalement</button>
           <button className={`${s.btn} ${s.ghost}`} style={{ marginTop: 8 }} onClick={() => nav(runId ? `/join/${token}/test/${runId}` : `/join/${token}`, { replace: true })}>{runId ? 'Retourner au test' : 'Retour à mes tests'}</button>
         </div>
@@ -318,8 +336,8 @@ function Report({ token }) {
   return (
     <Shell token={token} eyebrow="Nouveau signalement" title="Qu'avez-vous remarqué ?" back={runId ? `/join/${token}/test/${runId}` : `/join/${token}`}
       dock={<>
-        <button className={`${s.btn} ${hint ? s.ghost : ''}`} disabled={m.isPending} onClick={submit}>
-          {m.isPending ? <Loader size={18} className={s.spin} /> : hint ? <ChevronRight size={18} style={{ transform: 'rotate(90deg)' }} /> : <Send size={18} />}
+        <button className={`${s.btn} ${hint ? s.ghost : ''}`} disabled={m.isPending || uploading} onClick={submit}>
+          {m.isPending || uploading ? <Loader size={18} className={s.spin} /> : hint ? <ChevronRight size={18} style={{ transform: 'rotate(90deg)' }} /> : <Send size={18} />}
           {m.isPending ? 'Envoi…' : hint || 'Envoyer le signalement'}
         </button>
         {m.error && <p className={s.err} style={{ textAlign: 'center' }}>{m.error.message}</p>}
@@ -350,6 +368,18 @@ function Report({ token }) {
         ? <label className={s.field}><span className={s.fieldRow}>Comment le reproduire ? <em>facultatif</em></span>
           <textarea className={s.input} value={f.reproductionSteps} onChange={(e) => { set('reproductionSteps')(e); grow(e) }} onFocus={grow} placeholder={'1. J\'ouvre…\n2. Je touche…\n3. Le problème apparaît'} /></label>
         : <button className={s.linkBtn} style={{ marginBottom: 12 }} onClick={() => setShowRepro(true)}><Plus size={16} />Ajouter les étapes pour reproduire</button>)}
+      <div className={s.label} style={{ marginTop: 4 }}>Captures d'écran <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>· facultatif</span></div>
+      <div className={s.thumbs}>
+        {files.map((x) => (
+          <div key={x.id} className={s.thumb}>
+            <img src={x.preview} alt="" />
+            {x.status === 'up' && <div className={s.thumbOv}><Loader size={22} className={s.spin} /></div>}
+            {x.status === 'err' && <button className={`${s.thumbOv} ${s.thumbErr}`} aria-label="Erreur, retirer" onClick={() => setFiles((c) => c.filter((y) => y.id !== x.id))}><AlertTriangle size={20} /><small>Échec</small></button>}
+            {x.status !== 'err' && <button className={s.thumbX} aria-label="Retirer" onClick={() => setFiles((c) => c.filter((y) => y.id !== x.id))}><X size={14} /></button>}
+          </div>))}
+        {files.length < 4 && <button className={s.addThumb} onClick={() => fileRef.current?.click()}><ImagePlus size={24} /><small>Ajouter</small></button>}
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+      </div>
       {tester && <div className={s.device}>Envoyé depuis <b>{[tester.deviceModel, tester.platform === 'IOS' ? 'iOS' : tester.platform === 'ANDROID' ? 'Android' : null, tester.osVersion].filter(Boolean).join(' · ') || 'votre téléphone'}</b></div>}
     </Shell>
   )
@@ -471,6 +501,8 @@ function Finding({ token }) {
           {f.severity && <span className={`${s.pill} ${s['sv' + f.severity] || ''}`}>{SEV_LABEL[f.severity] || f.severity}</span>}
         </div>
         <div className={s.md}><Markdown>{f.description}</Markdown></div>
+        {f.attachments?.length > 0 && <div className={s.thumbs} style={{ marginTop: 12, marginBottom: 0 }}>{f.attachments.map((a) => (
+          <a key={a.id} className={s.thumb} href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt="Capture d'écran" loading="lazy" /></a>))}</div>}
       </div>
       <div className={s.section}>Conversation</div>
       {f.comments.length === 0 && <p className={s.convEmpty}>Aucun échange pour l'instant. Si l'équipe a une question, elle apparaîtra ici.</p>}

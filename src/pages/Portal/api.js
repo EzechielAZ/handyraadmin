@@ -14,7 +14,31 @@ export const detectDevice = () => {
   return { platform, deviceModel: m?.[1] || null, osVersion: os?.[1]?.replace(/_/g, '.') || null }
 }
 
+const MAX_SIDE = 1600
+/** Réduit l'image (côté max 1600 px, JPEG ~0,82) : envoi rapide même en 3G. */
+export const compressImage = (file) => new Promise((resolve, reject) => {
+  const img = new Image(); const url = URL.createObjectURL(file)
+  img.onload = () => {
+    const k = Math.min(1, MAX_SIDE / Math.max(img.width, img.height))
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url)
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error('Image illisible'))), 'image/jpeg', 0.82)
+  }
+  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')) }
+  img.src = url
+})
+
+export const uploadImage = async (token, file) => {
+  const blob = await compressImage(file)
+  const { data, error } = await supabase.functions.invoke('portal-upload-url', { body: { token, fileType: 'image/jpeg', size: blob.size } })
+  if (error || data?.error) throw new Error(data?.error || 'Envoi impossible, réessayez')
+  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+  if (!put.ok) throw new Error('Envoi interrompu, réessayez')
+  return { key: data.key, url: data.publicUrl, contentType: 'image/jpeg', size: blob.size }
+}
+
 export const portal = {
+  findingAttach: (token, ref, items) => call('portal_finding_attach', { p_token: token, p_ref: ref, p_items: items }),
   open:     (token, device) => call('portal_open', { p_token: token, p_device: device || null }),
   runGet:   (token, id) => call('portal_run_get', { p_token: token, p_run_id: id }),
   runRecord:(token, id, status, note, steps) =>
