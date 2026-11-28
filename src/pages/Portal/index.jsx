@@ -369,6 +369,7 @@ function Report({ token }) {
           <textarea className={s.input} value={f.reproductionSteps} onChange={(e) => { set('reproductionSteps')(e); grow(e) }} onFocus={grow} placeholder={'1. J\'ouvre…\n2. Je touche…\n3. Le problème apparaît'} /></label>
         : <button className={s.linkBtn} style={{ marginBottom: 12 }} onClick={() => setShowRepro(true)}><Plus size={16} />Ajouter les étapes pour reproduire</button>)}
       <div className={s.label} style={{ marginTop: 4 }}>Captures d'écran <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>· facultatif</span></div>
+      {files.some((x) => x.status === 'err') && <div className={s.err} style={{ marginTop: 0 }}>{files.find((x) => x.status === 'err').error}</div>}
       <div className={s.thumbs}>
         {files.map((x) => (
           <div key={x.id} className={s.thumb}>

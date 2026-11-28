@@ -29,11 +29,22 @@ export const compressImage = (file) => new Promise((resolve, reject) => {
 })
 
 export const uploadImage = async (token, file) => {
-  const blob = await compressImage(file)
+  let blob
+  try { blob = await compressImage(file) } catch { throw new Error('Image illisible (format non pris en charge)') }
+  // Étape 1 : URL signée (Edge Function)
   const { data, error } = await supabase.functions.invoke('portal-upload-url', { body: { token, fileType: 'image/jpeg', size: blob.size } })
-  if (error || data?.error) throw new Error(data?.error || 'Envoi impossible, réessayez')
-  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
-  if (!put.ok) throw new Error('Envoi interrompu, réessayez')
+  if (error || data?.error) {
+    let msg = data?.error
+    if (!msg && error?.context?.json) { try { msg = (await error.context.json())?.error } catch { /* ignore */ } }
+    const status = error?.context?.status
+    if (status === 404) throw new Error('Signature : fonction portal-upload-url introuvable (non déployée ?)')
+    throw new Error(`Signature${status ? ` (${status})` : ''} : ${msg || error?.message || 'réponse invalide'}`)
+  }
+  // Étape 2 : envoi direct vers R2
+  let put
+  try { put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob }) }
+  catch { throw new Error('Envoi R2 bloqué (règle CORS du bucket ?)') }
+  if (!put.ok) throw new Error(`Envoi R2 refusé (${put.status}) — clés ou permissions du bucket`)
   return { key: data.key, url: data.publicUrl, contentType: 'image/jpeg', size: blob.size }
 }
 
