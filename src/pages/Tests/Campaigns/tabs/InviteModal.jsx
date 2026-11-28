@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Modal, Button, Select } from '../../../../components/ui'
-import { TESTER_PROFILE, PLATFORM, buildInviteLink, toSelectOptions } from '../../../../hooks/tests'
+import { notifyTester, TESTER_PROFILE, PLATFORM, buildInviteLink, toSelectOptions } from '../../../../hooks/tests'
 import styles from '../../Tests.module.css'
 import local from '../Campaigns.module.css'
 
@@ -32,6 +32,7 @@ export const InviteModal = ({ isOpen, onClose, campaign, invite }) => {
   const [platform, setPlatform] = useState('')
   const [result, setResult] = useState(null)
   const [copied, setCopied] = useState('')
+  const [mail, setMail] = useState(true)
 
   const rows = useMemo(() => parseInviteLines(text, { profile, platform }), [text, profile, platform])
   const invalid = rows.filter((r) => !r.valid)
@@ -45,6 +46,12 @@ export const InviteModal = ({ isOpen, onClose, campaign, invite }) => {
         items: rows.filter((r) => r.valid).map((r) => ({ email: r.email, fullName: r.fullName, profile: r.profile, platform: r.platform })),
       })
       setResult(res)
+      if (mail && res.created?.length) {
+        const out = await Promise.all(res.created.map((t) => notifyTester({ kind: 'INVITE', ref: t.id_tester, silent: true })))
+        const ok = out.filter((o) => o.sent).length
+        if (ok === out.length) toast.success(`${ok} e-mail(s) d'invitation envoyé(s)`)
+        else toast.error(`${out.length - ok} e-mail(s) non envoyé(s) — copiez les liens ci-dessous`)
+      }
     } catch { /* toast */ }
   }
   const copy = async (token, email) => {
@@ -75,6 +82,10 @@ export const InviteModal = ({ isOpen, onClose, campaign, invite }) => {
             <Select label="Plateforme par défaut" value={platform} onChange={setPlatform}
               options={[{ value: '', label: 'Non précisée' }, ...toSelectOptions(PLATFORM)]} />
           </div>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={mail} onChange={(e) => setMail(e.target.checked)} />
+            Envoyer l'invitation par e-mail
+          </label>
           {invalid.length > 0 && (
             <span className={styles.fieldError} role="alert">
               {invalid.length} ligne(s) sans e-mail valide : {invalid.slice(0, 3).map((r) => r.email || '(vide)').join(', ')}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserPlus, MessageCircle, RefreshCw, UserMinus, Pencil, Copy } from 'lucide-react'
+import { UserPlus, Mail, MessageCircle, RefreshCw, UserMinus, Pencil, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Table, ActionsMenu, Modal, Input, Select } from '../../../../components/ui'
 import { StatusBadge, DocsEmptyState, DocsErrorState, ConfirmDialog } from '../../../../components/docs'
@@ -7,6 +7,7 @@ import { ProgressBar } from '../../../../components/tests'
 import {
   useTestTesters, useTestTesterMutations, TESTER_STATUS, TESTER_PROFILE, PLATFORM, buildInviteLink, toSelectOptions,
 } from '../../../../hooks/tests'
+import { notifyTester } from '../../../../hooks/tests'
 import { useDebounce } from '../../../../hooks/useDebounce'
 import { InviteModal } from './InviteModal'
 import styles from '../../Tests.module.css'
@@ -82,6 +83,7 @@ export const TestersTab = ({ campaign, readOnly }) => {
     { id: 'actions', header: '', width: '50px', sortable: false, cell: ({ row }) => !readOnly && row.status !== 'REMOVED' && (
       <ActionsMenu items={[
         { label: 'Copier le lien', icon: Copy, onClick: () => copyLink(row) },
+        { label: 'Renvoyer par e-mail', icon: Mail, onClick: () => notifyTester({ kind: 'INVITE', ref: row.id_tester }) },
         { label: 'Envoyer sur WhatsApp', icon: MessageCircle, onClick: () => whatsapp(row) },
         { label: 'Nouveau lien…', icon: RefreshCw, onClick: () => setRegen(row) },
         { label: 'Modifier', icon: Pencil, onClick: () => setEditing(row) },

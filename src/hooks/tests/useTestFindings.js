@@ -4,6 +4,7 @@ import { adminRpc } from '../../lib/adminRpc'
 import { useDocsQuery, useDocsMutation } from '../docs/useDocsQuery'
 import { docsKeys } from '../docs/keys'
 import { testsKeys } from './keys'
+import { notifyTester } from './notify'
 
 /** Boîte de réception des retours. campaignId optionnel (null = toutes campagnes). */
 export const useTestFindings = (filters = {}, options = {}) => {
@@ -90,6 +91,7 @@ export const useTestFindingMutations = () => {
     onSuccess: (data, vars) => {
       invalidate()
       qc.invalidateQueries({ queryKey: docsKeys.dashboard() })
+      if (vars.payload?.note || vars.decision === 'NEED_INFO') notifyTester({ kind: 'REPLY', ref: vars.id, source: 'triage' })
       const issue = data?.issue
       toast.success(
         vars.decision === 'CONFIRM' && issue ? `Confirmé · issue ${issue.code}`
@@ -102,7 +104,10 @@ export const useTestFindingMutations = () => {
   const comment = useDocsMutation({
     mutationFn: ({ id, content }) =>
       adminRpc('docs_test_finding_comment', { p_finding_id: id, p_content: content }),
-    onSuccess: () => { invalidate() },
+    onSuccess: (_d, vars) => {
+      invalidate()
+      notifyTester({ kind: 'REPLY', ref: vars.id, source: 'comment' })
+    },
   })
   /** Après correction : marque le retour et crée une nouvelle tentative pour le même testeur. */
   const requestRetest = useDocsMutation({
