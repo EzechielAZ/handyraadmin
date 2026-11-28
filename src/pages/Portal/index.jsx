@@ -463,7 +463,7 @@ function Finding({ token }) {
         <div className={s.track} aria-hidden="true">{steps.map(([l, i]) => (
           <div key={l} className={`${s.trackStep} ${i < step ? s.trackDone : ''} ${i === step ? s.trackNow : ''}`}><span className={s.trackDot} /><span>{l}</span></div>))}</div>
       </div>
-      {f.note && <div className={s.noteCard}><div className={s.label}>Message de l'équipe</div>{f.note}</div>}
+      {f.note && <div className={s.noteCard}><div className={s.noteIco}><MessageSquare size={18} /></div><div className={s.grow}><div className={s.label} style={{ margin: 0 }}>Message de l'équipe</div><div className={s.noteTxt}>{f.note}</div></div></div>}
       <div className={s.card}>
         <div className={s.row} style={{ marginBottom: 12 }}>
           <div className={`${s.ico} ${s['t' + f.type] || ''}`}><Ic size={20} /></div>
