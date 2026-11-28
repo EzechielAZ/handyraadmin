@@ -8,9 +8,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 const env = (k: string, d = '') => Deno.env.get(k) ?? d
 const KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY')
 // Liste officielle des modules (même source que le formulaire manuel : MODULE_SUGGESTIONS du dashboard).
-const OFFICIAL = ['MISSIONS', 'PAYMENTS', 'CHAT', 'HPO', 'KYC', 'ADMIN', 'AUTH', 'NOTIFICATIONS', 'PROJECTS', 'ARTISANS', 'USERS',
+const OFFICIAL = ['MISSIONS', 'PAYMENT', 'CHAT', 'HPO', 'KYC', 'ADMIN', 'AUTH', 'NOTIFICATIONS', 'PROJECTS', 'ARTISANS', 'USERS',
   'SEARCH', 'WALLET', 'INVOICES', 'QUOTES', 'SUBSCRIPTIONS', 'REPORTS']
-const SYNONYMS: Record<string, string> = { PAIEMENT: 'PAYMENTS', PAIEMENTS: 'PAYMENTS', PAYEMENT: 'PAYMENTS', PAYMENT: 'PAYMENTS',
+const SYNONYMS: Record<string, string> = { PAIEMENT: 'PAYMENT', PAIEMENTS: 'PAYMENT', PAYEMENT: 'PAYMENT', PAYMENTS: 'PAYMENT',
   MESSAGERIE: 'CHAT', NOTIFS: 'NOTIFICATIONS', NOTIFICATION: 'NOTIFICATIONS', MISSION: 'MISSIONS', ARTISAN: 'ARTISANS', FACTURES: 'INVOICES', DEVIS: 'QUOTES' }
 const MODEL = env('GEMINI_MODEL', 'gemini-3.8-flash')
 const cors = {
