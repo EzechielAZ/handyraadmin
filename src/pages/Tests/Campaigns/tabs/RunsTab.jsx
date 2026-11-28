@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Table } from '../../../../components/ui'
+import { Table, Select } from '../../../../components/ui'
 import { StatusBadge, DocsEmptyState, DocsErrorState } from '../../../../components/docs'
 import { Spinner } from '../../../../components/ui'
 import { useTestRunMatrix, useTestRuns, RUN_STATUS, SCENARIO_PRIORITY, toSelectOptions } from '../../../../hooks/tests'
@@ -83,11 +83,8 @@ const RunList = ({ campaignId, onOpen }) => {
   return (
     <>
       <div className={rs.toolbar}>
-        <select className={styles.textarea} style={{ minHeight: 0, height: 34, width: 180 }} aria-label="Filtrer par statut" value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
-          <option value="">Tous statuts</option>
-          {toSelectOptions(RUN_STATUS).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+<div style={{ width: 190 }}><Select size="sm" value={status} onChange={(v) => { setStatus(v); setPage(1) }}
+          options={[{ value: '', label: 'Tous statuts' }, ...toSelectOptions(RUN_STATUS)]} /></div>
       </div>
       <Table columns={columns} data={runs} rowKey="id_run" loading={isLoading} onRowClick={(r) => onOpen(r.id_run)}
         pagination={{ currentPage: page, totalPages: Math.max(1, Math.ceil(total / 50)), pageSize: 50, total, onPageChange: setPage }}

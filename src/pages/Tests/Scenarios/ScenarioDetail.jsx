@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Sparkles, Pencil, Copy, Archive, ArchiveRestore, Clock } from 'lucide-react'
-import { Button, Spinner } from '../../../components/ui'
+import { Button, Spinner, ActionsMenu } from '../../../components/ui'
 import { StatusBadge, DocsErrorState, ConfirmDialog } from '../../../components/docs'
 import Markdown from '../../../components/docs/Markdown/Markdown'
 import { ProgressBar } from '../../../components/tests'
@@ -50,8 +50,8 @@ export const ScenarioDetailPage = () => {
         <ArrowLeft size={13} /> Scénarios
       </Link>
 
-      <div className={styles.cardHead} style={{ alignItems: 'flex-start', marginBottom: 20 }}>
-        <div className={styles.stack} style={{ gap: 10 }}>
+      <div className={styles.cardHead} style={{ alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className={styles.stack} style={{ gap: 10, flex: '1 1 340px', minWidth: 0 }}>
           <div className={styles.badges}>
             <span className={styles.codeCell}>{scenario.code}</span>
             <span className={styles.codeCell}>r{scenario.revision}</span>
@@ -64,13 +64,13 @@ export const ScenarioDetailPage = () => {
           {scenario.summary && <p style={{ margin: 0, color: 'var(--text-2)', maxWidth: 720 }}>{scenario.summary}</p>}
         </div>
         {canWrite && (
-          <div className={styles.badges}>
-            <Button variant="outline" icon={Copy} onClick={duplicate} isLoading={mutations.duplicate.isPending}>Dupliquer</Button>
-            <Button variant="outline" icon={archived ? ArchiveRestore : Archive} onClick={() => setConfirmArchive(true)}>
-              {archived ? 'Restaurer' : 'Archiver'}
-            </Button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap', flex: 'none', whiteSpace: 'nowrap' }}>
             <Button variant="outline" icon={Sparkles} onClick={() => setAiOpen(true)}>Modifier avec l'IA</Button>
             <Button variant="primary" icon={Pencil} onClick={() => setEditOpen(true)}>Modifier</Button>
+            <ActionsMenu items={[
+              { label: 'Dupliquer', icon: Copy, onClick: duplicate },
+              { label: archived ? 'Restaurer' : 'Archiver', icon: archived ? ArchiveRestore : Archive, onClick: () => setConfirmArchive(true) },
+            ]} />
           </div>
         )}
       </div>

@@ -25,6 +25,7 @@ export const DocsDrawer = ({
   saveLabel,
   cancelLabel = 'Annuler',
   saving = false,
+  saveDisabled = false,
   onSave,
   children,
   width = 'md',       // 'md' | 'lg' | 'xl'
@@ -93,7 +94,7 @@ export const DocsDrawer = ({
                 type="button"
                 className={styles.btnPrimary}
                 onClick={onSave}
-                disabled={saving}
+                disabled={saving || saveDisabled}
               >
                 {saving ? (
                   <>

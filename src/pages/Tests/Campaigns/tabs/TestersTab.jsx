@@ -104,11 +104,8 @@ export const TestersTab = ({ campaign, readOnly }) => {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input className={styles.textarea} style={{ minHeight: 0, height: 34, width: 240 }} placeholder="Rechercher…" aria-label="Rechercher un testeur"
               value={searchInput} onChange={(e) => { setSearchInput(e.target.value); setPage(1) }} />
-            <select className={styles.textarea} style={{ minHeight: 0, height: 34, width: 160 }} aria-label="Filtrer par statut" value={status}
-              onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
-              <option value="">Tous statuts</option>
-              {Object.entries(TESTER_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
+            <div style={{ width: 180 }}><Select size="sm" value={status} onChange={(v) => { setStatus(v); setPage(1) }}
+              options={[{ value: '', label: 'Tous statuts' }, ...Object.entries(TESTER_STATUS).map(([k, v]) => ({ value: k, label: v.label }))]} /></div>
           </div>
           {!readOnly && <Button variant="primary" icon={UserPlus} onClick={() => setInviteOpen(true)}>Inviter</Button>}
         </div>

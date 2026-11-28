@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Paperclip, MessageSquare } from 'lucide-react'
-import { Table, Tabs } from '../../../components/ui'
+import { Table, Tabs, Select } from '../../../components/ui'
 import { StatusBadge, DocsErrorState, Tooltip } from '../../../components/docs'
 import {
   useTestFindings, FINDING_STATUS, FINDING_SEVERITY, FINDING_TYPE, toSelectOptions,
@@ -64,19 +64,13 @@ export const FindingsList = ({ campaignId = null, campaigns = null }) => {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '12px 0' }}>
         <input className={styles.textarea} style={{ ...sel, width: 240 }} placeholder="Rechercher…" aria-label="Rechercher un retour"
           value={searchInput} onChange={(e) => { setSearchInput(e.target.value); setPage(1) }} />
-        <select className={styles.textarea} style={{ ...sel, width: 150 }} aria-label="Gravité" value={severity} onChange={reset(setSeverity)}>
-          <option value="">Toutes gravités</option>
-          {toSelectOptions(FINDING_SEVERITY).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className={styles.textarea} style={{ ...sel, width: 150 }} aria-label="Type" value={type} onChange={reset(setType)}>
-          <option value="">Tous types</option>
-          {toSelectOptions(FINDING_TYPE).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <div style={{ width: 170 }}><Select size="sm" value={severity} onChange={(v) => reset(setSeverity)({ target: { value: v } })}
+          options={[{ value: '', label: 'Toutes gravités' }, ...toSelectOptions(FINDING_SEVERITY)]} /></div>
+        <div style={{ width: 160 }}><Select size="sm" value={type} onChange={(v) => reset(setType)({ target: { value: v } })}
+          options={[{ value: '', label: 'Tous types' }, ...toSelectOptions(FINDING_TYPE)]} /></div>
         {campaigns && (
-          <select className={styles.textarea} style={{ ...sel, width: 220 }} aria-label="Campagne" value={campaign} onChange={reset(setCampaign)}>
-            <option value="">Toutes campagnes</option>
-            {campaigns.map((c) => <option key={c.id_campaign} value={c.id_campaign}>{c.code} · {c.name}</option>)}
-          </select>
+          <div style={{ width: 240 }}><Select size="sm" value={campaign} onChange={(v) => reset(setCampaign)({ target: { value: v } })}
+            options={[{ value: '', label: 'Toutes campagnes' }, ...campaigns.map((c) => ({ value: c.id_campaign, label: `${c.code} · ${c.name}` }))]} /></div>
         )}
       </div>
       <Table columns={columns} data={findings} rowKey="id_finding" loading={isLoading}
