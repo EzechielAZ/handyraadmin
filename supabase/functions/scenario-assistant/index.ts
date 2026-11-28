@@ -7,6 +7,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const env = (k: string, d = '') => Deno.env.get(k) ?? d
 const KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY')
+// Liste officielle des modules (même source que le formulaire manuel : MODULE_SUGGESTIONS du dashboard).
+const OFFICIAL = ['MISSIONS', 'PAYMENTS', 'CHAT', 'HPO', 'KYC', 'ADMIN', 'AUTH', 'NOTIFICATIONS', 'PROJECTS', 'ARTISANS', 'USERS',
+  'SEARCH', 'WALLET', 'INVOICES', 'QUOTES', 'SUBSCRIPTIONS', 'REPORTS']
+const SYNONYMS: Record<string, string> = { PAIEMENT: 'PAYMENTS', PAIEMENTS: 'PAYMENTS', PAYEMENT: 'PAYMENTS', PAYMENT: 'PAYMENTS',
+  MESSAGERIE: 'CHAT', NOTIFS: 'NOTIFICATIONS', NOTIFICATION: 'NOTIFICATIONS', MISSION: 'MISSIONS', ARTISAN: 'ARTISANS', FACTURES: 'INVOICES', DEVIS: 'QUOTES' }
 const MODEL = env('GEMINI_MODEL', 'gemini-3.8-flash')
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +30,7 @@ Règles :
 - Si la description est trop vague pour écrire des étapes fiables (écrans, rôle client/artisan, données, résultat attendu), pose au maximum 3 questions précises dans "message" et laisse "scenarios" vide. Sinon ne pose pas de question : propose directement les scénarios.
 - Un scénario = un parcours de 3 à 12 étapes. Chaque étape : une seule action concrète (actionMd) et un résultat observable (expectedMd).
 - Ne jamais inventer d'écran ou de bouton dont l'existence est incertaine : formule de façon générique ou pose la question.
-- Champs d'un scénario : title (obligatoire), summary, module (MAJUSCULES courtes : AUTH, PROFIL, SERVICES, RESERVATION, PAIEMENT, MESSAGERIE, NOTIFS, AVIS…), profile (ANY|CLIENT|ARTISAN), priority (P0 critique|P1|P2|P3), scenarioType (FUNCTIONAL|SMOKE|REGRESSION|EXPLORATORY|USABILITY|PERFORMANCE|SECURITY), estimatedMinutes (entier), preconditionsMd, testDataMd, tags (liste), status "READY", steps [{actionMd, expectedMd}].
+- Champs d'un scénario : title (obligatoire), summary, module (un module de la liste officielle du contexte), profile (ANY|CLIENT|ARTISAN), priority (P0 critique|P1|P2|P3), scenarioType (FUNCTIONAL|SMOKE|REGRESSION|EXPLORATORY|USABILITY|PERFORMANCE|SECURITY), estimatedMinutes (entier), preconditionsMd, testDataMd, tags (liste), status "READY", steps [{actionMd, expectedMd}].
 - MODULE : tu dois choisir EXACTEMENT l'un des modules existants fournis dans le contexte (copie l'orthographe). N'en propose un nouveau (MAJUSCULES, sans accent) que si aucun existant ne convient vraiment, et signale-le dans "message".
 - FEATURE : si une feature du contexte correspond au parcours, renseigne "featureCode" avec son code exact ; sinon omets le champ.
 - Nouveau scénario : pas de champ "code" (le serveur le génère). Évite les doublons avec les scénarios existants du contexte.
@@ -55,11 +60,8 @@ serve(async (req) => {
       A.rpc('docs_feature_list', { p_admin_id: adminId, p_page: 1, p_page_size: 200 }),
     ])
     const existing: any[] = lst.data?.items ?? []
-    const modules: string[] = Array.from(new Set([
-      ...Object.keys(lst.data?.stats?.byModule ?? {}),
-      ...existing.map((x) => x.module).filter(Boolean),
-    ])).sort()
     const features: any[] = (feats.data?.items ?? []).map((f: any) => ({ id: f.id_feature, code: f.code, name: f.name, module: f.module }))
+    const modules: string[] = Array.from(new Set([...OFFICIAL, ...features.map((f) => f.module).filter(Boolean)])).sort()
     const lastUser = [...messages].reverse().find((m: any) => m.role !== 'assistant')?.content ?? ''
     const cited = Array.from(new Set(String(lastUser).toUpperCase().match(/\bTS-\d+\b/g) ?? [])).slice(0, 3)
     const details: any[] = []
@@ -73,7 +75,7 @@ serve(async (req) => {
       })
     }
     const context = `CONTEXTE DE LA BASE (source de vérité)
-Modules existants : ${modules.join(', ') || '(aucun)'}
+Modules officiels (seuls autorisés) : ${modules.join(', ') || '(aucun)'}
 Features : ${JSON.stringify(features.map((f) => ({ code: f.code, name: f.name, module: f.module })))}
 Scénarios existants : ${JSON.stringify(existing.map((x) => ({ code: x.code, title: x.title, module: x.module })))}
 ${details.length ? `Scénarios à modifier (contenu actuel) : ${JSON.stringify(details)}` : ''}`
@@ -114,7 +116,7 @@ ${details.length ? `Scénarios à modifier (contenu actuel) : ${JSON.stringify(d
     const fixModule = (m: any) => {
       const raw = String(m ?? '').trim(); if (!raw) return undefined
       const k = norm(raw)
-      const hit = modules.find((x) => norm(x) === k) ?? modules.find((x) => k.length > 3 && lev(norm(x), k) <= 1)
+      const hit = modules.find((x) => norm(x) === k) ?? SYNONYMS[k] ?? modules.find((x) => k.length > 3 && lev(norm(x), k) <= 1)
       if (hit) return hit
       newModules.add(raw.toUpperCase()); return raw.toUpperCase()
     }
