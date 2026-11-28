@@ -14,6 +14,19 @@ export const detectDevice = () => {
   return { platform, deviceModel: m?.[1] || null, osVersion: os?.[1]?.replace(/_/g, '.') || null }
 }
 
+/** Détection fiable : Client Hints (Chrome/Android : vrai modèle + version), iOS : famille d'appareil (Apple masque le modèle). */
+export const detectDeviceAsync = async () => {
+  const d = detectDevice()
+  const ua = navigator.userAgent || ''
+  if (d.platform === 'IOS') d.deviceModel = /iPad/i.test(ua) ? 'iPad' : 'iPhone'
+  try {
+    const h = await navigator.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion'])
+    if (h?.model) d.deviceModel = h.model
+    if (h?.platformVersion && d.platform === 'ANDROID') d.osVersion = h.platformVersion.split('.')[0]
+  } catch { /* indisponible : on garde l'UA */ }
+  return d
+}
+
 const MAX_SIDE = 1600
 /** Réduit l'image (côté max 1600 px, JPEG ~0,82) : envoi rapide même en 3G. */
 export const compressImage = (file) => new Promise((resolve, reject) => {

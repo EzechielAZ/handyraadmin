@@ -3,7 +3,7 @@ import { Routes, Route, useParams, useNavigate, useLocation, useSearchParams } f
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, MessageSquare, Plus, ChevronRight, ChevronLeft, Check, X, Ban, Play, AlertTriangle, Loader, Bug, Palette, Lightbulb, HelpCircle, Link2Off, Send, Flag, Clock, ImagePlus, XCircle } from 'lucide-react'
 import Markdown from '../../components/docs/Markdown/Markdown'
-import { portal, detectDevice, uploadImage } from './api'
+import { portal, detectDeviceAsync, uploadImage } from './api'
 import s from './Portal.module.css'
 
 const ST = { ASSIGNED: 'À faire', IN_PROGRESS: 'En cours', PASSED: 'Réussi', FAILED: 'Échec', BLOCKED: 'Bloqué', SKIPPED: 'Ignoré',
@@ -79,7 +79,7 @@ const useToast = () => {
 }
 
 const useHome = (token) => useQuery({
-  queryKey: ['portal', token], queryFn: () => portal.open(token, detectDevice()), retry: false, refetchOnWindowFocus: true,
+  queryKey: ['portal', token], queryFn: async () => portal.open(token, await detectDeviceAsync()), retry: false, refetchOnWindowFocus: true,
 })
 
 function Gate({ token, q, skeleton, children }) {
@@ -92,19 +92,22 @@ function Gate({ token, q, skeleton, children }) {
 }
 
 function Profile({ token, data }) {
-  const qc = useQueryClient(); const d = detectDevice()
+  const qc = useQueryClient()
   const [name, setName] = useState(data.tester.fullName || '')
-  const [model, setModel] = useState(data.tester.deviceModel || d.deviceModel || '')
+  const [model, setModel] = useState(data.tester.deviceModel || '')
+  const known = !!data.tester.deviceModel
   const m = useMutation({
-    mutationFn: () => portal.open(token, { ...d, fullName: name, deviceModel: model || null }),
+    mutationFn: async () => portal.open(token, { ...(await detectDeviceAsync()), fullName: name, deviceModel: model || null }),
     onSuccess: (r) => qc.setQueryData(['portal', token], r),
   })
   return (
     <div className={s.card}>
       <div className={s.title}>Bienvenue 👋</div>
-      <p className={s.meta}>Dites-nous qui vous êtes et sur quel téléphone vous testez : ça nous aide à reproduire les bugs.</p>
+      <p className={s.meta}>Dites-nous qui vous êtes : nous détectons votre téléphone automatiquement pour reproduire les bugs.</p>
       <label className={s.field}><span>Votre nom</span><input className={s.input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
-      <label className={s.field}><span>Modèle du téléphone</span><input className={s.input} value={model} placeholder="ex. Tecno Spark 10" onChange={(e) => setModel(e.target.value)} /></label>
+      {known
+        ? <p className={s.meta}>Téléphone détecté : <b>{data.tester.deviceModel}</b></p>
+        : <label className={s.field}><span>Modèle du téléphone</span><input className={s.input} value={model} placeholder="ex. Tecno Spark 10" onChange={(e) => setModel(e.target.value)} /></label>}
       <button className={s.btn} disabled={!name.trim() || m.isPending} onClick={() => m.mutate()}>Continuer</button>
       <Err e={m.error} />
     </div>
