@@ -84,10 +84,18 @@ const useHome = (token) => useQuery({
 
 function Gate({ token, q, skeleton, children }) {
   if (q.isLoading) return <Shell token={token} eyebrow={<Sk w={120} h={12} />} title={<Sk w={220} h={28} />}>{skeleton}</Shell>
-  if (q.isError) return (
-    <div className={s.root}><div className={s.wrap}><div className={s.empty}><Link2Off size={40} />
-      <h2>Lien invalide</h2><p>Ce lien n'est plus valide. Demandez-en un nouveau à l'équipe Handyra.</p></div></div></div>
-  )
+  if (q.isError) {
+    const e = q.error || {}
+    const bad = e.code === '28000' || /lien invalide/i.test(e.message || '')
+    return (
+      <div className={s.root}><div className={s.wrap}><div className={s.empty}><Link2Off size={40} />
+        <h2>{bad ? 'Lien invalide' : 'Connexion impossible'}</h2>
+        <p>{bad ? 'Ce lien n\'est plus valide. Demandez-en un nouveau à l\'équipe Handyra.' : 'Vérifiez votre connexion Internet puis réessayez.'}</p>
+        {!bad && <button className={s.btn} onClick={() => q.refetch?.()}>Réessayer</button>}
+        {!bad && e.message && <p style={{ fontSize: 12, opacity: 0.6 }}>{e.message}</p>}
+      </div></div></div>
+    )
+  }
   return children(q.data)
 }
 
