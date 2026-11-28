@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, RefreshCw, Pencil, ExternalLink, Copy, Upload, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, RefreshCw, Pencil, ExternalLink, Copy, Upload, Sparkles, Archive, ArchiveRestore } from 'lucide-react'
 import { Button, Table, ActionsMenu, StatCard } from '../../../components/ui'
 import { DocsHeader, DocsFilters, StatusBadge, DocsErrorState, Tooltip, ModuleIcon } from '../../../components/docs'
 import {
@@ -13,6 +13,7 @@ import { formatDateTime, formatRelative } from '../../../utils/docsFormatters'
 import { adminRpc } from '../../../lib/adminRpc'
 import { ScenarioDrawer } from './ScenarioDrawer'
 import { ScenarioImportModal } from './ScenarioImportModal'
+import { ScenarioAssistantModal } from './ScenarioAssistantModal'
 import styles from '../Tests.module.css'
 
 const PAGE_SIZE = 20
@@ -51,6 +52,7 @@ export const ScenariosPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState(null)       // { scenario, steps }
   const [importOpen, setImportOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
 
   const updateFilter = useCallback((key, value) => {
     setParams((prev) => {
@@ -138,6 +140,7 @@ export const ScenariosPage = () => {
         description="Bibliothèque réutilisable : écrivez un scénario une fois, utilisez-le dans toutes vos campagnes."
         actions={<>
           <Button variant="outline" icon={RefreshCw} onClick={refetch} isLoading={isFetching} aria-label="Rafraîchir" />
+          {canWrite && <Button variant="outline" icon={Sparkles} onClick={() => setAiOpen(true)}>Assistant IA</Button>}
           {canWrite && <Button variant="outline" icon={Upload} onClick={() => setImportOpen(true)}>Importer</Button>}
           {canWrite && <Button variant="primary" icon={Plus} onClick={() => { setEditing(null); setDrawerOpen(true) }}>Nouveau scénario</Button>}
         </>}
@@ -180,6 +183,7 @@ export const ScenariosPage = () => {
         isOpen={drawerOpen} onClose={() => { setDrawerOpen(false); setEditing(null) }}
         scenario={editing?.scenario} steps={editing?.steps} mutations={mutations}
       />
+      <ScenarioAssistantModal isOpen={aiOpen} onClose={() => setAiOpen(false)} mutations={mutations} />
       <ScenarioImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} mutations={mutations} />
     </div>
   )
