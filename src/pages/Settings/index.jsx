@@ -25,6 +25,7 @@ import {
   Banknote,
   AlertCircle
 } from 'lucide-react'
+import { ImageUpload } from '../../components/ui/ImageUpload/ImageUpload'
 import styles from './Settings.module.css'
 
 const Settings = () => {
@@ -546,37 +547,26 @@ const Settings = () => {
               </h2>
               
               <div className={styles.grid}>
-                <Input
-                  label="URL du logo"
-                  name="company_logo_url"
-                  value={formData.company_logo_url}
-                  onChange={handleInputChange}
-                  icon={Image}
-                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Logo</div>
+                  <ImageUpload folder="settings" label="Logo" value={formData.company_logo_url}
+                    onChange={(u) => handleInputChange({ target: { name: 'company_logo_url', value: u } })} />
+                </div>
                 
-                <Input
-                  label="URL du cachet"
-                  name="company_stamp_url"
-                  value={formData.company_stamp_url}
-                  onChange={handleInputChange}
-                  icon={Image}
-                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Cachet</div>
+                  <ImageUpload folder="settings" label="Cachet" value={formData.company_stamp_url}
+                    onChange={(u) => handleInputChange({ target: { name: 'company_stamp_url', value: u } })} />
+                </div>
                 
-                <Input
-                  label="URL de la signature"
-                  name="legal_signature_url"
-                  value={formData.legal_signature_url}
-                  onChange={handleInputChange}
-                  icon={Image}
-                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Signature</div>
+                  <ImageUpload folder="settings" label="Signature" value={formData.legal_signature_url}
+                    onChange={(u) => handleInputChange({ target: { name: 'legal_signature_url', value: u } })} />
+                </div>
               </div>
             </div>
 
-            {formData.company_logo_url && (
-              <div className={styles.preview}>
-                <img src={formData.company_logo_url} alt="Logo preview" />
-              </div>
-            )}
           </div>
         )}
 

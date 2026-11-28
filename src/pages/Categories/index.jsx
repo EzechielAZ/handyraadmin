@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { formatDate, formatCurrency } from '../../utils/formatters'
 import toast from 'react-hot-toast'
+import { ImageUpload } from '../../components/ui/ImageUpload/ImageUpload'
 import base from '../Artisans/Artisans.module.css'
 import styles from './Categories.module.css'
 
@@ -265,17 +266,10 @@ const CategoryDrawer = ({
             <div className={styles.drawerField}>
               <label className={styles.drawerFieldLabel}>
                 <ImageIcon size={12} />
-                URL de l'icône
+                Icône
                 <span className={styles.drawerOptional}>optionnel</span>
               </label>
-              <input
-                className={[styles.drawerInput, styles.drawerInputMono].join(' ')}
-                value={form.icon_url}
-                onChange={(e) => setField('icon_url', e.target.value)}
-                placeholder="https://…"
-                autoComplete="off"
-                spellCheck="false"
-              />
+              <ImageUpload folder="categories" label="Icône" value={form.icon_url} onChange={(u) => setField('icon_url', u)} />
             </div>
           </section>
 
