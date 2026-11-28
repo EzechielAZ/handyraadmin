@@ -49,20 +49,27 @@ serve(async (req) => {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: String(m.content ?? '').slice(0, 8000) }],
     }))
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents,
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 16000 },
-      }),
+    const body = JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents,
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 16000 },
     })
-    const out = await res.json().catch(() => ({}))
-    if (!res.ok) { console.error('[scenario-assistant] Gemini', out); return json({ error: out?.error?.message || 'Gemini indisponible' }, 502) }
+    // Essais : modèle principal (x2), puis gemini-2.5-flash-lite en secours.
+    let res: Response | null = null; let out: any = {}
+    for (const model of [MODEL, MODEL, 'gemini-2.5-flash-lite']) {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${KEY}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+      })
+      out = await res.json().catch(() => ({}))
+      if (res.ok) break
+      console.error('[scenario-assistant] Gemini', model, res.status, out)
+      if (res.status < 429 && res.status !== 408) break
+      await new Promise((r) => setTimeout(r, 800))
+    }
+    if (!res || !res.ok) return json({ error: out?.error?.message || 'Gemini indisponible' }, 502)
     const raw = out?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
     let parsed: any
-    try { parsed = JSON.parse(raw) } catch { return json({ error: 'Réponse illisible, reformulez votre demande' }, 502) }
+    try { parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) } catch { return json({ error: 'Réponse illisible, reformulez votre demande' }, 502) }
     const scenarios = (Array.isArray(parsed.scenarios) ? parsed.scenarios : []).map((s: any) => { const { code: _c, ...rest } = s || {}; return { status: 'READY', ...rest } })
     return json({ message: String(parsed.message ?? ''), scenarios })
   } catch (e) {
