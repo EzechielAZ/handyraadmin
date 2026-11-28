@@ -26,7 +26,10 @@ Règles :
 - Un scénario = un parcours de 3 à 12 étapes. Chaque étape : une seule action concrète (actionMd) et un résultat observable (expectedMd).
 - Ne jamais inventer d'écran ou de bouton dont l'existence est incertaine : formule de façon générique ou pose la question.
 - Champs d'un scénario : title (obligatoire), summary, module (MAJUSCULES courtes : AUTH, PROFIL, SERVICES, RESERVATION, PAIEMENT, MESSAGERIE, NOTIFS, AVIS…), profile (ANY|CLIENT|ARTISAN), priority (P0 critique|P1|P2|P3), scenarioType (FUNCTIONAL|SMOKE|REGRESSION|EXPLORATORY|USABILITY|PERFORMANCE|SECURITY), estimatedMinutes (entier), preconditionsMd, testDataMd, tags (liste), status "READY", steps [{actionMd, expectedMd}].
-- Pas de champ "code" : le serveur le génère.
+- MODULE : tu dois choisir EXACTEMENT l'un des modules existants fournis dans le contexte (copie l'orthographe). N'en propose un nouveau (MAJUSCULES, sans accent) que si aucun existant ne convient vraiment, et signale-le dans "message".
+- FEATURE : si une feature du contexte correspond au parcours, renseigne "featureCode" avec son code exact ; sinon omets le champ.
+- Nouveau scénario : pas de champ "code" (le serveur le génère). Évite les doublons avec les scénarios existants du contexte.
+- MODIFICATION d'un scénario existant : le contexte contient son contenu complet. Renvoie-le dans "scenarios" avec son "code" exact et TOUS ses champs (modifiés ou non, étapes complètes). Ne renvoie que les scénarios modifiés.
 - Quand tu proposes des scénarios, "message" résume en une ou deux phrases ce que tu as prévu, et invite à demander des modifications.
 - Si on te demande une modification, renvoie la liste complète et corrigée des scénarios.`
 
@@ -45,12 +48,42 @@ serve(async (req) => {
     const { error: gErr } = await db.schema('admin').rpc('docs_test_scenario_import', { p_admin_id: adminId, p_items: [], p_dry_run: true })
     if (gErr) return json({ error: 'Accès refusé' }, 403)
 
+    // Contexte réel de la base : modules, features, scénarios existants, et scénarios cités par code.
+    const A = db.schema('admin')
+    const [lst, feats] = await Promise.all([
+      A.rpc('docs_test_scenario_list', { p_admin_id: adminId, p_page: 1, p_page_size: 200 }),
+      A.rpc('docs_feature_list', { p_admin_id: adminId, p_page: 1, p_page_size: 200 }),
+    ])
+    const existing: any[] = lst.data?.items ?? []
+    const modules: string[] = Array.from(new Set([
+      ...Object.keys(lst.data?.stats?.byModule ?? {}),
+      ...existing.map((x) => x.module).filter(Boolean),
+    ])).sort()
+    const features: any[] = (feats.data?.items ?? []).map((f: any) => ({ id: f.id_feature, code: f.code, name: f.name, module: f.module }))
+    const lastUser = [...messages].reverse().find((m: any) => m.role !== 'assistant')?.content ?? ''
+    const cited = Array.from(new Set(String(lastUser).toUpperCase().match(/\bTS-\d+\b/g) ?? [])).slice(0, 3)
+    const details: any[] = []
+    for (const c of cited) {
+      const { data } = await A.rpc('docs_test_scenario_get', { p_admin_id: adminId, p_ref: c })
+      if (data?.scenario) details.push({
+        code: data.scenario.code, title: data.scenario.title, summary: data.scenario.summary, module: data.scenario.module,
+        featureCode: data.feature?.code, profile: data.scenario.profile, priority: data.scenario.priority, scenarioType: data.scenario.scenario_type,
+        estimatedMinutes: data.scenario.estimated_minutes, preconditionsMd: data.scenario.preconditions_md, testDataMd: data.scenario.test_data_md,
+        tags: data.scenario.tags, status: data.scenario.status, steps: (data.steps ?? []).map((st: any) => ({ actionMd: st.action_md, expectedMd: st.expected_md })),
+      })
+    }
+    const context = `CONTEXTE DE LA BASE (source de vérité)
+Modules existants : ${modules.join(', ') || '(aucun)'}
+Features : ${JSON.stringify(features.map((f) => ({ code: f.code, name: f.name, module: f.module })))}
+Scénarios existants : ${JSON.stringify(existing.map((x) => ({ code: x.code, title: x.title, module: x.module })))}
+${details.length ? `Scénarios à modifier (contenu actuel) : ${JSON.stringify(details)}` : ''}`
+
     const contents = messages.slice(-20).map((m: any) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: String(m.content ?? '').slice(0, 8000) }],
     }))
     const body = JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
+      systemInstruction: { parts: [{ text: SYSTEM + '\n\n' + context }] },
       contents,
       generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 16000 },
     })
@@ -69,8 +102,33 @@ serve(async (req) => {
     const raw = out?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
     let parsed: any
     try { parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) } catch { return json({ error: 'Réponse illisible, reformulez votre demande' }, 502) }
-    const scenarios = (Array.isArray(parsed.scenarios) ? parsed.scenarios : []).map((s: any) => { const { code: _c, ...rest } = s || {}; return { status: 'READY', ...rest } })
-    return json({ message: String(parsed.message ?? ''), scenarios })
+    const norm = (x: string) => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+    const lev = (a: string, b: string) => {
+      const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
+      for (let j = 1; j <= b.length; j++) d[0][j] = j
+      for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+      return d[a.length][b.length]
+    }
+    const newModules = new Set<string>()
+    const fixModule = (m: any) => {
+      const raw = String(m ?? '').trim(); if (!raw) return undefined
+      const k = norm(raw)
+      const hit = modules.find((x) => norm(x) === k) ?? modules.find((x) => k.length > 3 && lev(norm(x), k) <= 1)
+      if (hit) return hit
+      newModules.add(raw.toUpperCase()); return raw.toUpperCase()
+    }
+    const byCode = new Map(existing.map((x) => [String(x.code).toUpperCase(), x]))
+    const scenarios = (Array.isArray(parsed.scenarios) ? parsed.scenarios : []).map((s0: any) => {
+      const { code, featureCode, ...rest } = s0 || {}
+      const hit = code ? byCode.get(String(code).toUpperCase()) : null
+      const f = featureCode ? features.find((x) => x.code === featureCode) : null
+      const out: any = { status: 'READY', ...rest, module: fixModule(rest.module) }
+      if (f) out.featureId = f.id
+      if (hit) { out.editId = hit.id_scenario; out.editCode = hit.code }
+      return out
+    })
+    return json({ message: String(parsed.message ?? ''), scenarios, newModules: [...newModules] })
   } catch (e) {
     console.error('[scenario-assistant]', e)
     return json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, 500)

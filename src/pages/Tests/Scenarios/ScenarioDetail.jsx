@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Pencil, Copy, Archive, ArchiveRestore, Clock } from 'lucide-react'
+import { ArrowLeft, Sparkles, Pencil, Copy, Archive, ArchiveRestore, Clock } from 'lucide-react'
 import { Button, Spinner } from '../../../components/ui'
 import { StatusBadge, DocsErrorState, ConfirmDialog } from '../../../components/docs'
 import Markdown from '../../../components/docs/Markdown/Markdown'
@@ -11,12 +11,14 @@ import {
 } from '../../../hooks/tests'
 import { formatDateTime } from '../../../utils/docsFormatters'
 import { ScenarioDrawer } from './ScenarioDrawer'
+import { ScenarioAssistantModal } from './ScenarioAssistantModal'
 import styles from '../Tests.module.css'
 
 export const ScenarioDetailPage = () => {
   const { ref } = useParams()
   const navigate = useNavigate()
   const { canWrite } = useTestsAccess()
+  const [aiOpen, setAiOpen] = useState(false)
   const { scenario, steps, feature, campaigns, runStats, isLoading, isError, error, refetch } = useTestScenario(ref)
   const mutations = useTestScenarioMutations()
   const [editOpen, setEditOpen] = useState(false)
@@ -67,6 +69,7 @@ export const ScenarioDetailPage = () => {
             <Button variant="outline" icon={archived ? ArchiveRestore : Archive} onClick={() => setConfirmArchive(true)}>
               {archived ? 'Restaurer' : 'Archiver'}
             </Button>
+            <Button variant="outline" icon={Sparkles} onClick={() => setAiOpen(true)}>Modifier avec l'IA</Button>
             <Button variant="primary" icon={Pencil} onClick={() => setEditOpen(true)}>Modifier</Button>
           </div>
         )}
@@ -156,6 +159,7 @@ export const ScenarioDetailPage = () => {
         </aside>
       </div>
 
+      <ScenarioAssistantModal isOpen={aiOpen} onClose={() => setAiOpen(false)} mutations={mutations} initialText={`${scenario?.code} : `} />
       <ScenarioDrawer isOpen={editOpen} onClose={() => setEditOpen(false)} scenario={scenario} steps={steps} mutations={mutations} />
       <ConfirmDialog
         isOpen={confirmArchive} onClose={() => setConfirmArchive(false)} onConfirm={doArchive}
