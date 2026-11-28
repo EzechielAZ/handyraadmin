@@ -13,7 +13,7 @@ import {
 import {
   useFeatures, useFeatureMutations,
   FEATURE_STATUS, FEATURE_PRIORITY, FEATURE_COMPLEXITY,
-  MODULE_SUGGESTIONS, toSelectOptions,
+  useModuleCodes, toSelectOptions,
 } from '../../../hooks/docs'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { formatDateTime, formatDateShort } from '../../../utils/docsFormatters'
@@ -85,16 +85,17 @@ export const FeaturesPage = () => {
   const activeCount = [search, module, status].filter(Boolean).length
 
   // ── Module options (suggestions + ceux réellement présents) ──
+  const moduleCodes = useModuleCodes()
   const moduleOptions = useMemo(() => {
     const set = new Set([
-      ...MODULE_SUGGESTIONS,
+      ...moduleCodes,
       ...Object.keys(stats.byModule || {}),
     ])
     return [
       { value: 'all', label: 'Tous modules' },
       ...Array.from(set).sort().map((m) => ({ value: m, label: m })),
     ]
-  }, [stats.byModule])
+  }, [stats.byModule, moduleCodes])
 
   const statusOptions = toSelectOptions(FEATURE_STATUS, { withAll: true, allLabel: 'Tous statuts' })
 

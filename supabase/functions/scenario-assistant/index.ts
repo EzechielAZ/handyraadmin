@@ -7,9 +7,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const env = (k: string, d = '') => Deno.env.get(k) ?? d
 const KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY')
-// Liste officielle des modules (même source que le formulaire manuel : MODULE_SUGGESTIONS du dashboard).
-const OFFICIAL = ['MISSIONS', 'PAYMENT', 'CHAT', 'HPO', 'KYC', 'ADMIN', 'AUTH', 'NOTIFICATIONS', 'PROJECTS', 'ARTISANS', 'USERS',
-  'SEARCH', 'WALLET', 'INVOICES', 'QUOTES', 'SUBSCRIPTIONS', 'REPORTS']
+// Repli si la table docs.modules (migration 006) n'est pas encore appliquée.
+const FALLBACK = ['MISSIONS', 'PAYMENT', 'CHAT', 'HPO', 'KYC', 'ADMIN', 'AUTH', 'NOTIFICATIONS', 'PROJECTS', 'ARTISANS', 'USERS', 'SEARCH', 'WALLET', 'INVOICES', 'QUOTES', 'SUBSCRIPTIONS', 'REPORTS']
 const SYNONYMS: Record<string, string> = { PAIEMENT: 'PAYMENT', PAIEMENTS: 'PAYMENT', PAYEMENT: 'PAYMENT', PAYMENTS: 'PAYMENT',
   MESSAGERIE: 'CHAT', NOTIFS: 'NOTIFICATIONS', NOTIFICATION: 'NOTIFICATIONS', MISSION: 'MISSIONS', ARTISAN: 'ARTISANS', FACTURES: 'INVOICES', DEVIS: 'QUOTES' }
 const MODEL = env('GEMINI_MODEL', 'gemini-3.8-flash')
@@ -59,9 +58,10 @@ serve(async (req) => {
       A.rpc('docs_test_scenario_list', { p_admin_id: adminId, p_page: 1, p_page_size: 200 }),
       A.rpc('docs_feature_list', { p_admin_id: adminId, p_page: 1, p_page_size: 200 }),
     ])
+    const mods = await A.rpc('docs_module_list', { p_admin_id: adminId })
     const existing: any[] = lst.data?.items ?? []
     const features: any[] = (feats.data?.items ?? []).map((f: any) => ({ id: f.id_feature, code: f.code, name: f.name, module: f.module }))
-    const modules: string[] = Array.from(new Set([...OFFICIAL, ...features.map((f) => f.module).filter(Boolean)])).sort()
+    const modules: string[] = (Array.isArray(mods.data) && mods.data.length ? mods.data.map((m: any) => m.code) : FALLBACK)
     const lastUser = [...messages].reverse().find((m: any) => m.role !== 'assistant')?.content ?? ''
     const cited = Array.from(new Set(String(lastUser).toUpperCase().match(/\bTS-\d+\b/g) ?? [])).slice(0, 3)
     const details: any[] = []
@@ -116,7 +116,7 @@ ${details.length ? `Scénarios à modifier (contenu actuel) : ${JSON.stringify(d
     const fixModule = (m: any) => {
       const raw = String(m ?? '').trim(); if (!raw) return undefined
       const k = norm(raw)
-      const hit = modules.find((x) => norm(x) === k) ?? SYNONYMS[k] ?? modules.find((x) => k.length > 3 && lev(norm(x), k) <= 1)
+      const hit = modules.find((x) => norm(x) === k) ?? (modules.includes(SYNONYMS[k]) ? SYNONYMS[k] : undefined) ?? modules.find((x) => k.length > 3 && lev(norm(x), k) <= 1)
       if (hit) return hit
       newModules.add(raw.toUpperCase()); return raw.toUpperCase()
     }

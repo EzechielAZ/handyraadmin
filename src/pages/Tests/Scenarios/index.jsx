@@ -7,7 +7,7 @@ import {
   useTestScenarios, useTestScenarioMutations, useTestsAccess,
   SCENARIO_STATUS, SCENARIO_PROFILE, SCENARIO_PRIORITY, SCENARIO_TYPE, toSelectOptions,
 } from '../../../hooks/tests'
-import { MODULE_SUGGESTIONS } from '../../../hooks/docs'
+import { useModuleCodes } from '../../../hooks/docs'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { formatDateTime, formatRelative } from '../../../utils/docsFormatters'
 import { adminRpc } from '../../../lib/adminRpc'
@@ -116,10 +116,11 @@ export const ScenariosPage = () => {
       cell: ({ row }) => <ActionsMenu items={rowActions(row)} /> },
   ]
 
+  const moduleCodes = useModuleCodes()
   const moduleOptions = useMemo(() => {
-    const set = new Set([...MODULE_SUGGESTIONS, ...Object.keys(stats.byModule || {})])
+    const set = new Set([...moduleCodes, ...Object.keys(stats.byModule || {})])
     return [{ value: 'all', label: 'Tous modules' }, ...[...set].sort().map((m) => ({ value: m, label: m }))]
-  }, [stats.byModule])
+  }, [stats.byModule, moduleCodes])
 
   if (isError) {
     return (

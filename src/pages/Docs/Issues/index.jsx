@@ -13,7 +13,7 @@ import {
 import {
   useIssues, useIssueMutations, useFeatures,
   ISSUE_TYPE, ISSUE_STATUS, ISSUE_SEVERITY, ISSUE_PRIORITY,
-  MODULE_SUGGESTIONS, toSelectOptions,
+  toSelectOptions,
 } from '../../../hooks/docs'
 import { useDebounce } from '../../../hooks/useDebounce'
 import {

@@ -4,7 +4,7 @@ import { Input, Select } from '../../../components/ui'
 import { DocsDrawer } from '../../../components/docs'
 import {
   FEATURE_STATUS, FEATURE_PRIORITY, FEATURE_COMPLEXITY,
-  MODULE_SUGGESTIONS, toSelectOptions,
+  useModuleCodes, toSelectOptions,
 } from '../../../hooks/docs'
 import styles from './FeatureDrawer.module.css'
 
@@ -101,13 +101,14 @@ export const FeatureDrawer = ({
     onSave(payload)
   }
 
+  const moduleCodes = useModuleCodes()
   const moduleOptions = useMemo(() => {
     const set = new Set([
-      ...MODULE_SUGGESTIONS,
+      ...moduleCodes,
       ...existingModules,
     ])
     return Array.from(set).sort().map((m) => ({ value: m, label: m }))
-  }, [existingModules])
+  }, [existingModules, moduleCodes])
 
   const statusOptions = toSelectOptions(FEATURE_STATUS)
   const priorityOptions = [

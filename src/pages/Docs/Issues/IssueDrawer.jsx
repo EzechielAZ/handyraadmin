@@ -3,7 +3,7 @@ import { Input, Select } from '../../../components/ui'
 import { DocsDrawer } from '../../../components/docs'
 import {
   ISSUE_TYPE, ISSUE_SEVERITY, ISSUE_PRIORITY, ISSUE_STATUS,
-  ISSUE_TRANSITIONS, canTransition, MODULE_SUGGESTIONS, toSelectOptions,
+  ISSUE_TRANSITIONS, canTransition, useModuleCodes, toSelectOptions,
 } from '../../../hooks/docs'
 import styles from './IssueDrawer.module.css'
 
@@ -30,6 +30,7 @@ const validate = (form, isEdit) => {
 }
 
 export const IssueDrawer = ({ isOpen, onClose, issue, features, mutations }) => {
+  const moduleCodes = useModuleCodes()
   const isEdit = !!issue
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -187,7 +188,7 @@ export const IssueDrawer = ({ isOpen, onClose, issue, features, mutations }) => 
             list="module-suggestions-issue"
           />
           <datalist id="module-suggestions-issue">
-            {MODULE_SUGGESTIONS.map((m) => <option key={m} value={m} />)}
+            {moduleCodes.map((m) => <option key={m} value={m} />)}
           </datalist>
         </div>
 

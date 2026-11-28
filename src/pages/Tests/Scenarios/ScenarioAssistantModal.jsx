@@ -3,6 +3,7 @@ import { Sparkles, Send, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Modal, Button } from '../../../components/ui'
 import { supabase } from '../../../lib/supabase'
+import { adminRpc } from '../../../lib/adminRpc'
 import { getAdminId } from '../../../lib/admin'
 import styles from '../Tests.module.css'
 
@@ -40,6 +41,7 @@ export const ScenarioAssistantModal = ({ isOpen, onClose, mutations, initialText
 
   const create = async () => {
     try {
+      for (const m of newMods) await adminRpc('docs_module_create', { p_code: m })
       const edits = proposal.filter((p) => p.editId)
       const news = proposal.filter((p) => !p.editId)
       for (const { editId, editCode: _c, ...payload } of edits) await update.mutateAsync({ id: editId, payload })
@@ -75,7 +77,7 @@ export const ScenarioAssistantModal = ({ isOpen, onClose, mutations, initialText
 
         {newMods.length > 0 && (
           <div style={{ fontSize: 13, color: '#92400e', background: '#fffbeb', borderRadius: 10, padding: '8px 12px' }}>
-            Nouveau module proposé : <b>{newMods.join(', ')}</b> — il sera créé tel quel. Demandez-moi d'utiliser un module existant si ce n'est pas voulu.
+            Nouveau module proposé : <b>{newMods.join(', ')}</b> — il sera ajouté au référentiel des modules à l'enregistrement. Demandez un module existant si ce n'est pas voulu.
           </div>
         )}
         {proposal.length > 0 && (

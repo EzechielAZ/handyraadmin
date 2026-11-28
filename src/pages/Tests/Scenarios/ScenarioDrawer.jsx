@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Input, Select } from '../../../components/ui'
 import { DocsDrawer } from '../../../components/docs'
-import { useFeatures, MODULE_SUGGESTIONS } from '../../../hooks/docs'
+import { useFeatures, useModuleCodes } from '../../../hooks/docs'
 import {
   SCENARIO_PROFILE, SCENARIO_PRIORITY, SCENARIO_TYPE, toSelectOptions,
 } from '../../../hooks/tests'
@@ -90,11 +90,12 @@ export const ScenarioDrawer = ({ isOpen, onClose, scenario, steps, mutations, on
     ...(features || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'))
       .map((f) => ({ value: f.id_feature, label: `${f.code} · ${f.name}` })),
   ], [features])
+  const moduleCodes = useModuleCodes()
   const moduleOptions = useMemo(() => {
-    const set = new Set(MODULE_SUGGESTIONS)
+    const set = new Set(moduleCodes)
     if (form.module) set.add(form.module.toUpperCase())
     return [{ value: '', label: '— Aucun —' }, ...[...set].sort().map((m) => ({ value: m, label: m }))]
-  }, [form.module])
+  }, [form.module, moduleCodes])
 
   const saving = mutations.create.isPending || mutations.update.isPending
 
