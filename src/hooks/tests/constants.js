@@ -155,6 +155,6 @@ export const DEFAULT_EXIT_CRITERIA = {
   maxOpenCritical: 0,
 }
 
-/** Lien d'invitation testeur (portail à venir : /join/:token) */
-export const buildInviteLink = (token) =>
-  `${window.location.origin.replace(/\/$/, '')}/join/${token}`
+/** Lien d'invitation testeur : VITE_PORTAL_URL (sous-domaine public des testeurs), sinon l'origine courante. */
+export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL || window.location.origin).replace(/\/$/, '')
+export const buildInviteLink = (token) => `${PORTAL_URL}/join/${token}`

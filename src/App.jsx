@@ -82,6 +82,17 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Sous-domaine public des testeurs (VITE_PORTAL_URL) : il ne sert QUE le portail, jamais l'administration.
+  const portalHost = (() => { try { return import.meta.env.VITE_PORTAL_URL ? new URL(import.meta.env.VITE_PORTAL_URL).hostname : '' } catch { return '' } })()
+  if (portalHost && window.location.hostname === portalHost && !window.location.pathname.startsWith('/join/')) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center', fontFamily: 'Inter, system-ui, sans-serif', color: '#334155' }}>
+        <div><div style={{ fontSize: 20, fontWeight: 700, color: '#1e3a5f', marginBottom: 8 }}>Handyra · Programme de tests</div>
+          <div style={{ fontSize: 14 }}>Ouvrez le lien personnel que vous avez reçu par e-mail ou WhatsApp.</div></div>
+      </div>
+    )
+  }
+
   // Portail testeur : public, accessible par lien d'invitation (sans compte)
   if (window.location.pathname.startsWith('/join/')) {
     return (

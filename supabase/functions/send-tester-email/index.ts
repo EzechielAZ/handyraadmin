@@ -12,7 +12,7 @@ const RESEND_API_KEY = env('RESEND_API_KEY')
 const FROM_EMAIL = env('TESTS_FROM_EMAIL') || env('WELCOME_FROM_EMAIL') || 'Handyra <onboarding@resend.dev>'
 const REPLY_TO = env('WELCOME_REPLY_TO', 'contact@handyra.app')
 const WHATSAPP = env('WHATSAPP_NUMBER', '+229 01 98 39 75 24')
-const PORTAL_URL = env('PORTAL_URL', 'https://admin.handyra.app').replace(/\/$/, '')
+const PORTAL_URL = env('PORTAL_URL', 'https://staging.handyra.app').replace(/\/$/, '')
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
