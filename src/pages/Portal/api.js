@@ -1,7 +1,7 @@
 import { supabase } from '../../lib/supabase'
 
 const call = async (fn, args) => {
-  const { data, error } = await supabase.schema('admin').rpc(fn, args)
+  const { data, error } = await supabase.rpc(fn, args)
   if (error) throw new Error(error.message || 'Erreur réseau')
   return data
 }
