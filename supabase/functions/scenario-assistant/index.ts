@@ -1,13 +1,13 @@
 // Edge Function : scenario-assistant
 // Agent conversationnel (Gemini) qui rédige des scénarios de test à partir d'une description libre.
 // Il pose des questions si nécessaire, puis propose des scénarios au format de l'import du dashboard.
-// Secrets : GEMINI_API_KEY (ou GOOGLE_API_KEY), optionnel GEMINI_MODEL (défaut gemini-2.5-flash).
+// Secrets : GEMINI_API_KEY (ou GOOGLE_API_KEY), optionnel GEMINI_MODEL (défaut gemini-3.8-flash).
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const env = (k: string, d = '') => Deno.env.get(k) ?? d
 const KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY')
-const MODEL = env('GEMINI_MODEL', 'gemini-2.5-flash')
+const MODEL = env('GEMINI_MODEL', 'gemini-3.8-flash')
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -54,16 +54,15 @@ serve(async (req) => {
       contents,
       generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 16000 },
     })
-    // Essais : modèle principal (x2), puis gemini-2.5-flash-lite en secours.
+    // Modèle principal, puis gemini-2.5-flash-lite en secours (modèle retiré, quota, surcharge…).
     let res: Response | null = null; let out: any = {}
-    for (const model of [MODEL, MODEL, 'gemini-2.5-flash-lite']) {
+    for (const model of [MODEL, 'gemini-2.5-flash-lite']) {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${KEY}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
       })
       out = await res.json().catch(() => ({}))
       if (res.ok) break
       console.error('[scenario-assistant] Gemini', model, res.status, out)
-      if (res.status < 429 && res.status !== 408) break
       await new Promise((r) => setTimeout(r, 800))
     }
     if (!res || !res.ok) return json({ error: out?.error?.message || 'Gemini indisponible' }, 502)
